@@ -11,7 +11,7 @@ from pathlib import Path
 from collections.abc import Mapping
 from typing import Protocol, Sequence
 
-from test_adapters.model import FrozenMap, TestRequest, TestResult, freeze
+from test_adapters.model import TestRequest, TestResult, freeze
 
 
 @dataclass(frozen=True)
