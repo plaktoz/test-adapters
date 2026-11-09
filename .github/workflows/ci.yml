@@ -23,5 +23,5 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python }}
-      - name: Gate (scripts/check: import boundaries, lint, type check, tests, build)
+      - name: "Gate: scripts/check (import boundaries, lint, type check, tests, build)"
         run: ./scripts/check
