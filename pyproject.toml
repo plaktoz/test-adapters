@@ -23,6 +23,8 @@ packages = ["src/test_adapters"]
 [tool.pytest.ini_options]
 pythonpath = ["src"]
 testpaths = ["tests"]
+# Fixture projects contain failing tests on purpose. The outer run must not collect them.
+norecursedirs = ["fixtures"]
 
 [tool.mypy]
 strict = true
@@ -67,7 +69,8 @@ forbidden_modules = ["test_adapters.render"]
 name = "Layers: entry points over engine over data (ADR 0003)"
 type = "layers"
 layers = [
-    "test_adapters.cli | test_adapters.api",
+    "test_adapters.cli",
+    "test_adapters.api",
     "test_adapters.render | test_adapters.combine | test_adapters.detection | test_adapters.config",
     "test_adapters.execution",
     "test_adapters.adapters",
@@ -79,6 +82,7 @@ layers = [
 line-length = 120
 target-version = "py311"
 src = ["src"]
+extend-exclude = ["tests/fixtures"]
 
 [tool.ruff.lint]
 # Narrow on purpose: real defects and the recurring mistakes below. Style rules are not enforced.

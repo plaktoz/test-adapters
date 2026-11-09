@@ -1,0 +1,35 @@
+#!/usr/bin/env sh
+# One command for the whole gate: import boundaries, lint, type check, tests, build.
+# Used by a developer and by CI (.github/workflows/ci.yml). Exits non-zero on the first failure.
+#
+# Needs: uv (https://docs.astral.sh/uv/) on PATH. Every tool runs through uvx, so nothing else is installed.
+# Windows: run this under Git Bash or WSL. Not tested on Windows (issue #11).
+set -eu
+
+ROOT=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
+cd "$ROOT"
+
+if ! command -v uvx >/dev/null 2>&1; then
+    echo "scripts/check: uvx not found. Install uv: https://docs.astral.sh/uv/" >&2
+    exit 127
+fi
+
+echo "== import boundaries"
+PYTHONPATH=src uvx --from import-linter lint-imports
+
+echo "== lint"
+uvx ruff check --no-cache .
+
+echo "== type check"
+uvx --from mypy mypy --strict src/test_adapters
+
+echo "== tests"
+uvx --with pytest pytest -q
+
+echo "== build"
+BUILD_DIR=$(mktemp -d)
+trap 'rm -rf "$BUILD_DIR"' EXIT
+uvx --from build pyproject-build --wheel --outdir "$BUILD_DIR" .
+ls "$BUILD_DIR"
+
+echo "== all checks passed"
