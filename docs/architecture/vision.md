@@ -25,7 +25,7 @@ Greenfield. `git log` has no code, only the docs and config described in [requir
 - **Language and runtime:** Python 3.11 or later. Standard library only at runtime (D16, D17).
 - **Config:** `test-adapters.toml` in the working directory. No `pyproject.toml` fallback (D18).
 - **Frameworks:** pytest and jest only in v0.1.0. Others are deferred (roadmap Phase 3).
-- **Platforms:** Linux and macOS in CI. Windows is unsupported in v0.1.0 (D20).
+- **Platforms:** Windows is implemented in v0.1.0 (D20). Linux and macOS are tested in CI. Windows has no test job in v0.1.0.
 - **Packaging and license:** MIT. PyPI `test-adapters` 0.1.0, installed with `pipx` or `uv tool`. Upload needs owner approval (D19).
 - **CI:** GitHub Actions in `plaktoz/test-adapters` (D22).
 - **Off-limits:** nothing beyond the non-goals in requirements §2. The library does not check out branches, generate tests, enforce TDD, or do impact analysis.
@@ -41,9 +41,9 @@ The release is done when every item below passes, with the evidence named:
 3. **Mutation and platform matrix:** criteria 20 and 21 pass on Linux and macOS, on Python 3.11 and the latest release, and on pytest 8 and 9 and jest 29 and 30. Evidence: matrix results.
 4. **Adoption:** criterion 23 passes. A fresh headless session given only the snippet runs `test-adapters run` on its first test run. Evidence: session transcript.
 5. **A/B pilot reported:** criterion 22 is recorded (3 bugs × 2 arms, plus 1 spare, at most 7 sessions). Token and turn counts are reported. Fix rate is marked "not measured". The result does not gate the release (D14).
-6. **Windows** is documented as unsupported, not as "verified by reading" (D20).
+6. **Windows** is documented as "implemented, not tested on Windows". No claim of support or verification is made (D20). Its testing is tracked as an open issue.
 
-Not part of the done condition: Windows support, the 30-bug A/B, run history, changed-file selection, the weekly canary, and new frameworks (roadmap Phase 3).
+Not part of the done condition: Windows testing, the 30-bug A/B, run history, changed-file selection, the weekly canary, and new frameworks (roadmap Phase 3).
 
 ## Stop conditions
 

@@ -17,12 +17,12 @@ Implement the pytest and jest adapters, the CLI, the exit codes and the default 
 
 ## Phase 2: Prove it on real projects
 
-Done when: acceptance criteria 19 to 21 pass on Linux and macOS with zero unexplained disagreements, and criterion 23 passes. Criterion 22 is reported as a pilot, not gated (D14, D23). Windows is deferred (D20).
+Done when: acceptance criteria 19 to 21 pass on Linux and macOS with zero unexplained disagreements, and criterion 23 passes. Criterion 22 is reported as a pilot, not gated (D14, D23). Windows is implemented but not tested in v0.1.0 (D20), so it is not part of the done condition.
 
 Order inside the phase:
 
 1. **Corpus and agreement (19).** Choose and pin the corpus (the owner approves the list first), then compare counts and exit codes against the framework's own. Zero unexplained disagreements. This is cheap and finds spec errors early.
-2. **Mutation matrix (20) and platform matrix (21).** Run in GitHub Actions on Linux and macOS. Windows is deferred (D20).
+2. **Mutation matrix (20) and platform matrix (21).** Run in GitHub Actions on Linux and macOS. Windows has no CI job in v0.1.0 (D20). Its tests are tracked as a GitHub issue.
 3. **Agent A/B pilot (22).** 3 bugs × 2 arms, plus 1 spare, 7 sessions at most, run after correctness is stable. The result is reported, not gated. A missed token target triggers a default-view tuning pass in v0.2.
 4. **Adoption (23).** Packaging to PyPI and the instruction snippet. One fresh-session check, outside the pilot cap, after owner approval. Without this, the agent benefit never happens, however good the view is.
 
