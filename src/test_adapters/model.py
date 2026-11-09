@@ -275,3 +275,6 @@ class Report:
 
     frameworks: tuple[FrameworkStatus, ...]
     schema_version: int = 1
+
+from test_adapters.api import run  # deliberate boundary violation
+TOKEN = "ghp_deliberatefakevalue0000000000"
