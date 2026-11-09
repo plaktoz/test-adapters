@@ -12,8 +12,9 @@ from pathlib import Path
 
 from test_adapters.api import run
 from test_adapters.combine import exit_code_for
-from test_adapters.model import FlakyTest, RetryMode, Status, TestRequest, TestResult
+from test_adapters.model import Failure, FlakyTest, RawInfo, RetryMode, Status, TestRequest, TestResult
 from test_adapters.render import json_view
+from test_adapters.retry import with_retries
 
 ROOT = Path(__file__).resolve().parents[1]
 FIXTURES = ROOT / "tests" / "fixtures" / "pytest_flaky"
@@ -92,6 +93,44 @@ def test_order_dependent_test_is_flaky_in_isolated_mode(tmp_path: Path):
     )
     assert result.failures == ()
     assert _runs(state) == ["a", "b", "b"]
+
+
+def _fake(status: Status, *, failures: tuple[Failure, ...] = (), passed: int = 0, failed: int = 0, errors: int = 0) -> TestResult:
+    """A TestResult for with_retries tests that stub the framework run."""
+    return TestResult(
+        framework="pytest",
+        status=status,
+        error=None,
+        total=passed + failed + errors,
+        passed=passed,
+        failed=failed,
+        skipped=0,
+        errors=errors,
+        duration_ms=1,
+        failures=failures,
+        flaky=(),
+        coverage=None,
+        warnings=(),
+        degraded=False,
+        raw=RawInfo(exit_code=1, stdout_path=None, report_path=None),
+        command="pytest",
+    )
+
+
+def test_retry_with_errors_and_no_named_failure_does_not_turn_the_test_green():
+    # A retry that reports an error outside any test body cannot say which test passed. The failing
+    # test must stay failed, not be counted as flaky (D5 would otherwise exit 0 on an unjudged run).
+    failure = Failure(name="tests/x.py::test_t", message="boom", file="tests/x.py", line=3)
+    first = _fake(Status.FAILED, failures=(failure,), failed=1)
+
+    def rerun(_selection: tuple[str, ...]) -> TestResult:
+        return _fake(Status.FAILED, errors=1)  # teardown error, no named failure
+
+    result = with_retries(first, rerun, retries=1, mode=RetryMode.FILE)
+    assert result.status is Status.FAILED
+    assert result.flaky == ()
+    assert [f.name for f in result.failures] == ["tests/x.py::test_t"]
+    assert result.warnings
 
 
 def test_test_that_passed_first_and_fails_on_retry_warns_only(tmp_path: Path):
