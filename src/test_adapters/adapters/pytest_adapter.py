@@ -35,7 +35,21 @@ _PYTEST_CONFIG_FILES = ("pytest.ini", "conftest.py")
 _COVERAGE_STATE = "coverage-state.txt"  # "installed" or "missing"
 _COVERAGE_JSON = "coverage.json"  # written by pytest-cov's json report
 _COVERAGE_FILES = (_COVERAGE_STATE, _COVERAGE_JSON)
-_MISSING_PYTEST_COV = "pytest-cov is not installed in the interpreter that runs the tests, so coverage was not measured"
+# `pytest -v` progress (6.3). `path::name STATUS [ 20%]`; the id can hold spaces, so STATUS is the last word before an optional reason or percent.
+_PROGRESS_LINE = re.compile(
+    r"^(?P<name>\S+::.*?)\s+(?P<status>PASSED|FAILED|ERROR|SKIPPED|XFAIL|XPASS)(?:\s+\(.*\))?(?:\s+\[\s*\d+%\])?\s*$"
+)
+_PROGRESS_START = re.compile(r"^(?P<name>\S+::.*?)\s*$")  # a test that started and has no status yet
+_PROGRESS_OUTCOMES = {
+    "PASSED": "passed",
+    "XPASS": "passed",  # non-strict xpass is passed (4.2)
+    "FAILED": "failed",
+    "ERROR": "error",
+    "SKIPPED": "skipped",
+    "XFAIL": "skipped",  # an expected failure is skipped (4.2)
+}
+_OUTCOME_RANK = ("error", "failed", "skipped", "passed")  # worst first: a test counts once, at its worst
+_MISSING_PYTEST_COV ="pytest-cov is not installed in the interpreter that runs the tests, so coverage was not measured"
 # Work-directory state for a parallelism request. "installed" or "missing" (6.3, criterion 25).
 _XDIST_STATE = "xdist-state.txt"
 _MISSING_XDIST = "pytest-xdist is not installed in the interpreter that runs the tests, so parallelism=N was not honoured"
@@ -65,7 +79,9 @@ class PytestAdapter:
         and parse adds a warning (6.5).
         """
         report = workdir / "junit.xml"
-        argv: list[str] = [sys.executable, "-m", "pytest", "-q", f"--junitxml={report}"]
+        # -v, not -q: the two cancel, and -q alone leaves only the dot form, which has no test names.
+        # A run does not know it will time out, so -v is always on. It gives the progress lines (6.3).
+        argv: list[str] = [sys.executable, "-m", "pytest", "-v", f"--junitxml={report}"]
         env: dict[str, str] = dict(request.env)
         report_paths: list[Path] = [report]
         if isinstance(request.parallelism, int):
@@ -102,7 +118,7 @@ class PytestAdapter:
         report = next((p for p in report_files if p.is_file() and p.name not in _WORK_FILES), None)
         if report is None:
             if timed_out:
-                return _timeout(exit_code=exit_code, warnings=warnings)
+                return _timeout(exit_code=exit_code, warnings=warnings, stdout=stdout)
             return _error(
                 ErrorCode.UNPARSEABLE_REPORT,
                 "no JUnit report was written",
@@ -249,23 +265,63 @@ def _named(report_files: Sequence[Path], name: str) -> Path | None:
     return next((p for p in report_files if p.name == name and p.is_file()), None)
 
 
-def _timeout(*, exit_code: int | None, warnings: tuple[str, ...] = ()) -> TestResult:
-    """A killed run with no report: counts are unavailable (6.3, D9)."""
+def _progress(stdout: str) -> tuple[dict[str, str], str | None]:
+    """Outcomes and the running test from `pytest -v` progress lines (6.3).
+
+    A finished test prints `path::name STATUS`. The id can hold spaces, so the line is split on the
+    last ` STATUS` word, not on the first space. A test with a teardown error prints twice, PASSED
+    then ERROR, so each id keeps its worst outcome and counts once. The last line has no status when
+    the kill hit a running test, and its id is returned as the running test.
+    """
+    outcomes: dict[str, str] = {}
+    running: str | None = None
+    lines = stdout.splitlines()
+    for index, raw in enumerate(lines):
+        match = _PROGRESS_LINE.match(raw)
+        if match is not None:
+            name = match.group("name")
+            outcome = _PROGRESS_OUTCOMES[match.group("status")]
+            previous = outcomes.get(name)
+            if previous is None or _OUTCOME_RANK.index(outcome) < _OUTCOME_RANK.index(previous):
+                outcomes[name] = outcome
+            continue
+        started = _PROGRESS_START.match(raw)
+        if started is not None and index == len(lines) - 1 and not stdout.endswith("\n"):
+            running = started.group("name")
+    return outcomes, running
+
+
+def _timeout(*, exit_code: int | None, warnings: tuple[str, ...] = (), stdout: str = "") -> TestResult:
+    """A killed run with no report (6.3, D9).
+
+    Counts come from `-v` progress lines as lower bounds, with `degraded` true. With no parseable
+    line, every count is null, never 0. The test that was running at the kill is named in `warnings`.
+    """
+    outcomes, running = _progress(stdout)
+    if running is not None:
+        warnings = (*warnings, f"the run was killed while {running} was running; it is probably the test that hangs")
+    counts: tuple[int | None, ...] = (None,) * 5
+    if outcomes:
+        passed = sum(1 for o in outcomes.values() if o == "passed")
+        failed = sum(1 for o in outcomes.values() if o == "failed")
+        skipped = sum(1 for o in outcomes.values() if o == "skipped")
+        errors = sum(1 for o in outcomes.values() if o == "error")
+        counts = (passed + failed + skipped + errors, passed, failed, skipped, errors)
     return TestResult(
         framework="pytest",
         status=Status.TIMEOUT,
         error=None,
-        total=None,
-        passed=None,
-        failed=None,
-        skipped=None,
-        errors=None,
+        total=counts[0],
+        passed=counts[1],
+        failed=counts[2],
+        skipped=counts[3],
+        errors=counts[4],
         duration_ms=0,
         failures=(),
         flaky=(),
         coverage=None,
         warnings=warnings,
-        degraded=False,
+        degraded=bool(outcomes),
         raw=RawInfo(exit_code=exit_code, stdout_path=None, report_path=None),
         command="pytest",
     )
