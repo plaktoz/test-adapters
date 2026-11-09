@@ -32,7 +32,7 @@ Approval: the owner gave blanket approval for Phase 5 task cards as issues label
 | T14 jest retries | #32 | ready-for-agent | T13, T3 | Edits `jest_adapter.py` after T13. Uses the retry loop from T3 | `jest_adapter.py` | [ ] |
 | T15 jest coverage | #33 | ready-for-agent | T14 | Edits `jest_adapter.py` after T14 | `jest_adapter.py` | [ ] |
 | T16 corpus agreement and mutation matrix | #34 | ready-for-human | T13, T14, T15; owner approves the corpus and the CI clone | The corpus needs jest, and the clone is a stop condition | `.github/workflows/ci.yml` | [ ] |
-| T17 agent A/B pilot | #35 | ready-for-human | T16; owner approves 7 sessions and the pinned model | The pilot needs the corpus result first, and spend needs approval | `docs/ab-pilot.md` | [ ] |
+| T17 agent A/B pilot | #35 | ready-for-human | T16; owner approves 7 sessions; the gateway fixes the model, so the pilot records it | The pilot needs the corpus result first, and spend needs approval | `docs/ab-pilot.md` | [ ] |
 | T18 adoption and PyPI | #36 | ready-for-human | T12, T13, T16, T17, T20; owner approves the session and the upload | Both need owner approval. Both are stop conditions | `docs/adoption.md`, `pyproject.toml` | [ ] |
 | T19 integration | #37 | ready-for-agent | T1 to T10, T12 to T15, T20 | The full flow runs on the merged result | `docs/tasks.md`, `docs/requirements.md` (6.2 only), `docs/live-checks/` | [ ] |
 | T20 remove the four refusals, update the README | #38 | ready-for-agent | T2, T3, T7, T9, T12, T14, T15 | Only this card edits the `cli.py` refusals and the README | `cli.py` (refusal block), `README.md` | [ ] |

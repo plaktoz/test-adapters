@@ -12,6 +12,7 @@ This repo is a framework for defining and deploying agent behaviors and evolving
 - The structure is provisional. Prefer small changes and update `README.md` when the layout changes.
 - Don't commit unless the user has asked for commits on this work. Once asked, commit after each task, as "Task management" says.
 - Do not read into agent-ignore folder
+- The LLM gateway does not allow changing the Claude model. Do not pass a model override to a session, subagent or headless run, and do not plan work that needs a chosen model. Record the model the gateway gives, as an observed fact, not a setting.
 
 ## Task management
 
