@@ -146,3 +146,21 @@ class CombinedResult:
     status: Status
     results: tuple[TestResult, ...]
     schema_version: int = 1
+
+
+@dataclass(frozen=True)
+class FrameworkStatus:
+    """Availability of one framework and its reporter, as reported by doctor (5.1)."""
+
+    name: FrameworkName
+    detected: bool
+    available: bool  # framework binary and reporter both present
+    hint: str  # install hint when not available, else ""
+
+
+@dataclass(frozen=True)
+class Report:
+    """Output of doctor(). One entry per known framework, whether or not it was detected."""
+
+    frameworks: tuple[FrameworkStatus, ...]
+    schema_version: int = 1

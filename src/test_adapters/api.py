@@ -7,7 +7,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from test_adapters.model import CombinedResult, Framework, TestRequest, TestResult
+from test_adapters.model import CombinedResult, Framework, FrameworkName, Report, TestRequest, TestResult
 
 
 def detect(cwd: Path) -> list[Framework]:
@@ -25,11 +25,16 @@ def run_all(request: TestRequest) -> CombinedResult:
     raise NotImplementedError
 
 
-def parse(framework: str, report_path_or_text: str) -> TestResult:
-    """Parse an existing report without running anything. Must match `run` on the same project (criterion 6)."""
+def parse(framework: FrameworkName, report_path: Path) -> TestResult:
+    """Parse an existing report file without running anything. Must match `run` on the same project (criterion 6)."""
     raise NotImplementedError
 
 
-def doctor(cwd: Path) -> dict[str, object]:
-    """Check that each detected framework and its reporter are installed (5.1)."""
+def parse_text(framework: FrameworkName, stdout: str) -> TestResult:
+    """Parse captured stdout when no report file exists. Counts are degraded lower bounds (6.3). Runs nothing."""
+    raise NotImplementedError
+
+
+def doctor(cwd: Path) -> Report:
+    """Check that each known framework and its reporter are installed (5.1). Runs no tests (D8)."""
     raise NotImplementedError

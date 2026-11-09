@@ -3,7 +3,7 @@
 Public surface (see docs/requirements.md section 5.1). Everything else is internal.
 """
 
-from test_adapters.api import detect, doctor, parse, run, run_all
+from test_adapters.api import detect, doctor, parse, parse_text, run, run_all
 from test_adapters.model import (
     CombinedResult,
     Coverage,
@@ -12,6 +12,8 @@ from test_adapters.model import (
     Failure,
     FlakyTest,
     Framework,
+    FrameworkStatus,
+    Report,
     RetryMode,
     Status,
     TestRequest,
@@ -27,6 +29,8 @@ __all__ = [
     "Failure",
     "FlakyTest",
     "Framework",
+    "FrameworkStatus",
+    "Report",
     "RetryMode",
     "Status",
     "TestAdaptersError",
@@ -35,6 +39,7 @@ __all__ = [
     "detect",
     "doctor",
     "parse",
+    "parse_text",
     "run",
     "run_all",
 ]
