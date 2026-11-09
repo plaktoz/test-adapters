@@ -1,6 +1,6 @@
 # test-adapters: Roadmap
 
-> Status: Draft v0.1 · Self-contained. Requirements and acceptance criteria are in [requirements.md](./requirements.md); this file does not repeat them. It records the phasing and what each phase needs.
+> Status: Draft v0.2 · Self-contained. Requirements and acceptance criteria are in [requirements.md](./requirements.md); this file does not repeat them. It records the phasing and what each phase needs.
 
 ## Goal
 
@@ -12,19 +12,19 @@ An agent or CI job in any Python or JavaScript repo trusts the red/green signal 
 
 Implement the pytest and jest adapters, the CLI, the exit codes and the default view as described in `requirements.md`.
 
-- Done when: acceptance criteria 1 to 18 pass.
+- Done when: acceptance criteria 1 to 18, 24 and 25 pass.
 - Before building each adapter, run the live checks listed under "Not yet verified" in requirements section 6.2 and record the results there.
 
 ## Phase 2: Prove it on real projects
 
-Done when: acceptance criteria 19 to 23 pass.
+Done when: acceptance criteria 19 to 21 pass on Linux and macOS with zero unexplained disagreements, and criterion 23 passes. Criterion 22 is reported as a pilot, not gated (D14, D23). Windows is deferred (D20).
 
 Order inside the phase:
 
-1. **Corpus and agreement (19).** Choose and pin the corpus, then compare counts and exit codes against the framework's own. This is cheap and finds spec errors early.
-2. **Mutation matrix (20) and platform matrix (21).** Run in CI on three operating systems. The Windows process-tree kill is the most likely thing to fail.
-3. **Agent A/B (22).** Costs agent sessions, so it runs after correctness is stable. If the default view loses to raw output, change the view and rerun before release.
-4. **Adoption (23).** Packaging and the instruction snippet. Without this, the agent benefit never happens, however good the view is.
+1. **Corpus and agreement (19).** Choose and pin the corpus (the owner approves the list first), then compare counts and exit codes against the framework's own. Zero unexplained disagreements. This is cheap and finds spec errors early.
+2. **Mutation matrix (20) and platform matrix (21).** Run in GitHub Actions on Linux and macOS. Windows is deferred (D20).
+3. **Agent A/B pilot (22).** 3 bugs × 2 arms, plus 1 spare, 7 sessions at most, run after correctness is stable. The result is reported, not gated. A missed token target triggers a default-view tuning pass in v0.2.
+4. **Adoption (23).** Packaging to PyPI and the instruction snippet. One fresh-session check, outside the pilot cap, after owner approval. Without this, the agent benefit never happens, however good the view is.
 
 ## Phase 3: Keep the signal trustworthy over time
 
@@ -39,10 +39,11 @@ Not part of the first release. Each item needs its own requirements section befo
 
 | Item | Needed for | Decision |
 |------|------------|----------|
-| A remote repository with CI enabled, Linux, macOS and Windows runners, and network access | Phase 2 (19 to 21) | Create it and approve pushing |
-| The corpus list (20 repos, pinned SHAs) | Phase 2 (19 to 21) | Approve a proposed list, or supply one |
-| Agent harness and budget (about 60 sessions) | Phase 2 (22) | Grant the spend; choose the harness |
-| Whether the A/B is a release gate | Phase 2 (22) | Default is yes (D14) |
+| GitHub Actions CI in `plaktoz/test-adapters`, Linux and macOS runners | Phase 2 (19 to 21) | Decided (D22) |
+| The corpus list (20 repos, 12 pytest and 8 jest, pinned SHAs) | Phase 2 (19 to 21) | Approve the proposal before anything is cloned |
+| Agent A/B pilot: 7 sessions, Claude Code headless, one pinned model | Phase 2 (22) | Approved |
+| Adoption check: 1 session, outside the pilot cap | Phase 2 (23) | Approve before it runs |
+| PyPI upload of `test-adapters` 0.1.0 | Phase 2 (23) | Approve the version and README before upload |
 | Whether impact analysis becomes in scope | Phase 3 | Decide when Phase 2 is done |
 
 ## Task state
