@@ -39,7 +39,55 @@ def run_process(
 
     Output goes to a file, tail-capped at `max_output_bytes`.
     """
-    raise NotImplementedError
+    import os
+    import subprocess
+    import tempfile
+    import time
+
+    if os.name != "posix":
+        raise NotImplementedError("walking skeleton runs process-group kill on POSIX only (6.3)")
+
+    out_fd, out_name = tempfile.mkstemp(prefix="test-adapters-", suffix=".log")
+    started = time.monotonic()
+    with os.fdopen(out_fd, "wb") as out:
+        proc = subprocess.Popen(
+            list(command.argv),
+            cwd=cwd,
+            env={**os.environ, **command.env},
+            stdout=out,
+            stderr=subprocess.STDOUT,
+            start_new_session=True,
+        )
+        timed_out = False
+        try:
+            exit_code: int | None = proc.wait(timeout=timeout_seconds)
+        except subprocess.TimeoutExpired:
+            timed_out = True
+            kill_group_posix(proc.pid, kill_grace_seconds)
+            proc.wait()
+            exit_code = None
+
+    _tail_cap(Path(out_name), max_output_bytes)
+    duration_ms = int((time.monotonic() - started) * 1000)
+    return ProcessOutcome(
+        exit_code=exit_code,
+        timed_out=timed_out,
+        stdout_path=Path(out_name),
+        duration_ms=duration_ms,
+    )
+
+
+def _tail_cap(path: Path, limit: int) -> None:
+    """Keep only the last `limit` bytes of `path` (6.3)."""
+    size = path.stat().st_size
+    if size <= limit:
+        return
+    with path.open("rb+") as f:
+        f.seek(size - limit)
+        tail = f.read()
+        f.seek(0)
+        f.write(tail)
+        f.truncate()
 
 
 def kill_tree_windows(pid: int) -> None:
@@ -49,4 +97,25 @@ def kill_tree_windows(pid: int) -> None:
 
 def kill_group_posix(pgid: int, grace_seconds: int) -> None:
     """SIGTERM the process group, wait `grace_seconds`, then SIGKILL it (6.3)."""
-    raise NotImplementedError
+    import os
+    import signal
+    import time
+
+    # EPERM on a group that still exists means "alive, but not ours to signal", so treat it as alive.
+    try:
+        os.killpg(pgid, signal.SIGTERM)
+    except (ProcessLookupError, PermissionError):
+        return
+    deadline = time.monotonic() + grace_seconds
+    while time.monotonic() < deadline:
+        try:
+            os.killpg(pgid, 0)
+        except ProcessLookupError:
+            return
+        except PermissionError:
+            pass
+        time.sleep(0.05)
+    try:
+        os.killpg(pgid, signal.SIGKILL)
+    except (ProcessLookupError, PermissionError):
+        pass
