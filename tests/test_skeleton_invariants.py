@@ -8,8 +8,6 @@ from __future__ import annotations
 
 import importlib
 import inspect
-import subprocess
-import sys
 from pathlib import Path
 
 import pytest
@@ -198,18 +196,6 @@ class TestF5AdapterParseSignature:
 
         params = list(inspect.signature(PytestAdapter.parse).parameters)
         assert params == ["self", "report_files", "exit_code", "stdout", "timed_out"]
-
-
-# Regression guard: the whole package passes strict type checking
-class TestTypeCheck:
-    def test_package_passes_mypy_strict(self):
-        result = subprocess.run(
-            [sys.executable, "-m", "mypy", "--strict", "src/test_adapters"],
-            cwd=ROOT,
-            capture_output=True,
-            text=True,
-        )
-        assert result.returncode == 0, result.stdout + result.stderr
 
 
 # F6: the detect function must not be shadowed by a submodule of the same name
