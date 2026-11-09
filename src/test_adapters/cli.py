@@ -8,13 +8,15 @@ from __future__ import annotations
 
 import argparse
 import sys
+from dataclasses import replace
 from pathlib import Path
 from typing import Sequence
 
 from test_adapters import api
 from test_adapters.combine import exit_code_for
+from test_adapters.config import resolve_config, to_request
 from test_adapters.errors import TestAdaptersError, UsageError
-from test_adapters.model import CombinedResult, Report, RetryMode, Status, TestRequest, TestResult
+from test_adapters.model import CombinedResult, Report, RetryMode, Status, TestResult
 from test_adapters.render import combined_text_view, json_view, text_view
 
 EXIT_USAGE = 2
@@ -48,10 +50,11 @@ def _build_parser() -> argparse.ArgumentParser:
     run_p = sub.add_parser("run", help="run the tests and print the default view")
     run_p.add_argument("--select", action="append", default=[], metavar="PATH|NODEID")
     run_p.add_argument("--framework", metavar="NAME|all")
-    run_p.add_argument("--timeout", type=int, default=600, metavar="SECONDS")
-    run_p.add_argument("--retry-failed", type=int, default=0, metavar="N")
-    run_p.add_argument("--retry-mode", choices=[m.value for m in RetryMode], default=RetryMode.FILE.value)
-    run_p.add_argument("--coverage", action="store_true")
+    # Defaults are None so an unset flag falls through to the environment and the config file (7).
+    run_p.add_argument("--timeout", type=int, default=None, metavar="SECONDS")
+    run_p.add_argument("--retry-failed", type=int, default=None, metavar="N")
+    run_p.add_argument("--retry-mode", choices=[m.value for m in RetryMode], default=None)
+    run_p.add_argument("--coverage", action="store_true", default=None)
     run_p.add_argument("--full", action="store_true")
     run_p.add_argument("--fields", metavar="LIST")
     run_p.add_argument("--json", action="store_true")
@@ -113,27 +116,30 @@ def _cmd_doctor(cwd: Path) -> int:
 
 def _cmd_run(args: argparse.Namespace) -> int:
     cwd = Path(args.cwd)
-    framework = args.framework
-    request = TestRequest(
-        cwd=cwd,
-        framework=framework,
-        select=tuple(args.select),
-        timeout_seconds=args.timeout,
-        retry_failed=args.retry_failed,
-        retry_mode=RetryMode(args.retry_mode),
-        coverage=args.coverage,
+    # Flag, then environment, then config file, then default (7). A bad value raises UsageError (exit 2).
+    config = resolve_config(
+        cwd,
+        {
+            "framework": args.framework,
+            "timeout_seconds": args.timeout,
+            "retry_failed": args.retry_failed,
+            "retry_mode": args.retry_mode,
+            "coverage": args.coverage,
+        },
     )
+    request = replace(to_request(config, cwd), select=tuple(args.select))
     # Flags that the skeleton does not implement are refused, not ignored: a silent no-op lies to the caller.
+    # The check reads the resolved values, so a config file or environment setting is refused too.
     for flag, used in (
-        ("--coverage", args.coverage),
-        ("--retry-failed", args.retry_failed),
-        ("--retry-mode", args.retry_mode != RetryMode.FILE.value),
+        ("--coverage", config.coverage),
+        ("--retry-failed", config.retry_failed),
+        ("--retry-mode", config.retry_mode != RetryMode.FILE),
         ("--fields", args.fields),
     ):
         if used:
             raise UsageError(f"{flag} is not implemented in this release (Phase 6)")
 
-    if framework == "all":
+    if request.framework == "all":
         result: TestResult | CombinedResult = api.run_all(request)
     else:
         result = api.run(request)
