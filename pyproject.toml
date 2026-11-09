@@ -27,3 +27,64 @@ testpaths = ["tests"]
 [tool.mypy]
 strict = true
 files = ["src/test_adapters"]
+
+[tool.importlinter]
+root_package = "test_adapters"
+
+[[tool.importlinter.contracts]]
+name = "Pure data model imports nothing from the package (ADR 0003 layering, 4.2)"
+type = "forbidden"
+source_modules = ["test_adapters.model"]
+forbidden_modules = [
+    "test_adapters.adapters",
+    "test_adapters.api",
+    "test_adapters.cli",
+    "test_adapters.config",
+    "test_adapters.detection",
+    "test_adapters.execution",
+    "test_adapters.render",
+    "test_adapters.combine",
+]
+
+[[tool.importlinter.contracts]]
+name = "Adapters do not depend on the public API or the CLI (5.2)"
+type = "forbidden"
+source_modules = ["test_adapters.adapters"]
+forbidden_modules = [
+    "test_adapters.api",
+    "test_adapters.cli",
+    "test_adapters.render",
+    "test_adapters.combine",
+]
+
+[[tool.importlinter.contracts]]
+name = "Only the CLI and the API may import the output views (5.5)"
+type = "forbidden"
+source_modules = ["test_adapters.adapters", "test_adapters.execution", "test_adapters.config", "test_adapters.detection"]
+forbidden_modules = ["test_adapters.render"]
+
+[[tool.importlinter.contracts]]
+name = "Layers: entry points over engine over data (ADR 0003)"
+type = "layers"
+layers = [
+    "test_adapters.cli | test_adapters.api",
+    "test_adapters.render | test_adapters.combine | test_adapters.detection | test_adapters.config",
+    "test_adapters.execution",
+    "test_adapters.adapters",
+    "test_adapters.errors",
+    "test_adapters.model",
+]
+
+[tool.ruff]
+line-length = 120
+target-version = "py311"
+src = ["src"]
+
+[tool.ruff.lint]
+# Narrow on purpose: real defects and the recurring mistakes below. Style rules are not enforced.
+# S105-S108 flag hardcoded secrets and temp paths (ADR-level rule: no secrets in source).
+select = ["F", "B", "PLE", "S105", "S106", "S107", "S108"]
+
+[tool.ruff.lint.per-file-ignores]
+# Tests use fixed fixture strings; they are not secrets.
+"tests/**" = ["S105", "S106", "S107", "S108"]
