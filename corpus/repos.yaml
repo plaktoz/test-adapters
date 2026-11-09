@@ -1,0 +1,171 @@
+# Validation corpus for test-adapters (requirements 9.1, criteria 19-21).
+#
+# Cloned in CI, never vendored (D15). Each SHA is a full commit on the repo's default
+# branch at the time of pinning (2026-11-09). Re-pin only by a reviewed change to this file.
+#
+# Every SHA here was confirmed to exist with `gh api repos/<repo>/commits/<sha>`.
+# Test commands are the core runner invocation read from each repo's config files.
+# Some repos wrap it (coverage, Makefile variables, per-suite tox envs). Those wrappers
+# are NOT reproduced here and must be confirmed when each suite is first run. Suites
+# have NOT yet been run. `jest: "unverified"` means the devDependency version was not checked.
+#
+# Fields:
+#   repo        GitHub owner/name
+#   language    python | javascript
+#   license     SPDX identifier, permissive only
+#   sha         pinned commit
+#   command     the repo's own test command, as read from its config
+#   jest        jest major (javascript only), from devDependencies
+#   tags        why it is in the corpus
+
+repos:
+  # ---- pytest (12) ----
+  - repo: pallets/flask
+    language: python
+    license: BSD-3-Clause
+    sha: 49943b5a94413a530761350f04e896f76e8d620e
+    command: pytest -v --tb=short
+    tags: [medium]
+
+  - repo: pallets/click
+    language: python
+    license: BSD-3-Clause
+    sha: 8abb77a8432e03ed14a95f972b44f905279415a7
+    command: pytest -v --tb=short
+    tags: [small, xdist]
+
+  - repo: psf/requests
+    language: python
+    license: Apache-2.0
+    sha: 3c7baaa05ab4aa49cc819ce3a819d260de19c157
+    command: python -m pytest tests
+    tags: [medium, doctest-addopts]
+
+  - repo: python-attrs/attrs
+    language: python
+    license: MIT
+    sha: 9d9f94a043de7fc4012459853a4ed597a5577855
+    command: pytest -n auto
+    tags: [small, xdist, custom-conftest]
+
+  - repo: python-poetry/poetry
+    language: python
+    license: MIT
+    sha: fc845fbacf502eda5504efad5bbec6915c1a9f00
+    command: pytest
+    tags: [medium, xdist-addopts, custom-conftest]
+
+  - repo: fastapi/typer
+    language: python
+    license: MIT
+    sha: 00381d6c8f91cd8bc7273aeae2179e791db6e9d4
+    command: pytest --numprocesses=auto
+    tags: [small, xdist]
+
+  - repo: pydantic/pydantic
+    language: python
+    license: MIT
+    sha: fe5b5ce5581f10626a16dc7ff4159cf3cb6ddbec
+    command: pytest --durations=10
+    tags: [large, monorepo, custom-conftest]
+
+  - repo: marshmallow-code/marshmallow
+    language: python
+    license: MIT
+    sha: a38b7f6842042e65fd1a485ed152ca99f87880c0
+    command: pytest
+    tags: [small, baseline]
+
+  - repo: Textualize/rich
+    language: python
+    license: MIT
+    sha: 3a109ccdffe5b2d0e30684a304fbd388e99ce57b
+    command: pytest tests/
+    tags: [medium, baseline]
+
+  - repo: pypa/pip
+    language: python
+    license: MIT
+    sha: 4b71f36fb4dfbc87ce65ac4710eeccf81d379f55
+    command: pytest -n auto
+    tags: [medium, xdist, custom-conftest]
+
+  - repo: langchain-ai/langchain
+    language: python
+    license: MIT
+    sha: 82f2e3f995abbba1304128a48d2cfb268bc1c755
+    command: pytest -n auto tests/unit_tests/
+    tags: [large, monorepo, xdist, custom-conftest]
+
+  - repo: dagster-io/dagster
+    language: python
+    license: Apache-2.0
+    sha: 55208da7a9dc8fe3cea511d39508b97f73ab8769
+    command: pytest -vv ./dagster_tests/core_tests --durations 10
+    tags: [large, monorepo, custom-conftest]
+
+  # ---- jest (9) ----
+  - repo: jest-community/jest-extended
+    language: javascript
+    license: MIT
+    sha: bac81b32c33f73cb59f2115664d07c26b82aa1d2
+    command: jest --color=true
+    jest: "unverified"
+    tags: [small, ts-jest]
+
+  - repo: jest-community/eslint-plugin-jest
+    language: javascript
+    license: MIT
+    sha: 412426e83a6e608aa54e8091c8f7a6f3472d0262
+    command: jest
+    jest: "unverified"
+    tags: [medium, jest-projects]
+
+  - repo: remix-run/react-router
+    language: javascript
+    license: MIT
+    sha: fcfccb2e3cefa2bd73dc43cc68146fbaa11b180b
+    command: node --experimental-vm-modules --no-warnings=ExperimentalWarning ./node_modules/jest/bin/jest.js
+    jest: "unverified"
+    tags: [medium, monorepo]
+
+  - repo: apollographql/apollo-client
+    language: javascript
+    license: MIT
+    sha: c5f7ac58c1529101f3519feb20f889087bb6a1f7
+    command: node --expose-gc --experimental-import-meta-resolve --disable-warning=ExperimentalWarning ./node_modules/jest/bin/jest.js --config ./config/jest.config.ts
+    jest: "unverified"
+    tags: [large, monorepo]
+
+  - repo: kulshekhar/ts-jest
+    language: javascript
+    license: MIT
+    sha: c8217989df760dd87fb188402afef494319bf79f
+    command: jest -c=jest.config.ts
+    jest: "unverified"
+    tags: [large, jest-consumer]
+
+  - repo: prettier/prettier
+    language: javascript
+    license: MIT
+    sha: 303363c6fa0298d8032eac15f116bc3faae23831
+    command: jest
+    jest: "unverified"
+    tags: [large]
+
+  - repo: webpack/webpack
+    language: javascript
+    license: MIT
+    sha: aa3cb8671f6acfbbd0eaf75a5ac885df7a2e0600
+    command: yarn test:base
+    jest: "unverified"
+    tags: [large, heavy-memory-flags]
+
+  - repo: vercel/next.js
+    language: javascript
+    license: MIT
+    sha: 0cf3769051fbc0e09346624f1f5bd26159df5875
+    command: node_modules/.bin/jest test/unit/ packages/next/ packages/font
+    jest: "29.7.0"
+    tags: [very-large, jest-29]
+    notes: "Replaces iamkun/dayjs, which pins jest 22. Clone is about 2.6 GB. Its suite scripts also run jest through scripts/run-jest.sh for integration tests, so only the unit command is used here."

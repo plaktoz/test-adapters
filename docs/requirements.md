@@ -152,7 +152,8 @@ Returned by `run_all` and by `run --framework all`.
 | `detect(cwd) -> [Framework]` | Ordered candidates from project files (section 6.1) |
 | `run(request) -> TestResult` | Build the command, execute, parse. `framework: "all"` is a usage error here; use `run_all` |
 | `run_all(request) -> CombinedResult` | Run every detected framework in turn (4.4) |
-| `parse(framework, report_path_or_text) -> TestResult` | Parse an existing report without running anything |
+| `parse(framework, report_path) -> TestResult` | Parse an existing report file without running anything |
+| `parse_text(framework, stdout) -> TestResult` | Parse captured stdout when no report exists. Counts are degraded (6.3). Split from `parse` in v0.5 |
 | `adapter_info(framework) -> { command_template, report_format, requires[] }` | Introspection |
 | `doctor(cwd) -> Report` | Verify the framework and its reporter are installed |
 
