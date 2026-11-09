@@ -32,6 +32,7 @@ from test_adapters.model import (
     TestRequest,
     TestResult,
 )
+from test_adapters.retry import with_retries
 
 
 def detect(cwd: Path) -> list[Framework]:
@@ -69,6 +70,19 @@ def run(request: TestRequest) -> TestResult:
             f"install {', '.join(missing)} into the interpreter that runs test-adapters",
         )
 
+    first = _run_once(adapter, request)
+    if request.retry_failed <= 0:
+        return first
+    return with_retries(
+        first,
+        lambda selection: _run_once(adapter, replace(request, select=selection, retry_failed=0)),
+        request.retry_failed,
+        request.retry_mode,
+    )
+
+
+def _run_once(adapter: Adapter, request: TestRequest) -> TestResult:
+    """One execution of the framework in a fresh workdir, so no attempt reads another's report (6.4)."""
     workdir = Path(tempfile.mkdtemp(prefix="test-adapters-run-"))
     command = adapter.build_command(request, workdir)
     outcome = run_process(
