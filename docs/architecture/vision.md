@@ -1,6 +1,6 @@
 # test-adapters: Vision
 
-Status: APPROVED by the owner. The `unslop` prose pass (playbook Phase 0 step 4) is pending; it needs the owner to run `/unslop` themselves. Source of detail: [requirements.md](../requirements.md) v0.5 and [roadmap.md](../roadmap.md) v0.2.
+Status: APPROVED by the owner. Source of detail: [requirements.md](../requirements.md) v0.5 and [roadmap.md](../roadmap.md) v0.2.
 
 ## Goal
 
@@ -14,18 +14,18 @@ One command runs a Python or JavaScript project's tests with pytest or jest, and
 | 2 | Fix loop | Coding agent | Runs `test-adapters run --select <files>`. Reads the default text view. Reruns the failing tests from the `help` line. |
 | 3 | Session start | Coding agent | Runs `test-adapters` with no arguments. Sees the detected framework and `doctor` status. No test is run (D8). |
 
-The Python API used by metrics tools (`run()`, `parse()`) is a supporting interface, not a main flow.
+The Python API used by metrics tools (`run()`, `parse()`, `parse_text()`) is a supporting interface, not a main flow.
 
 ## Current state
 
-Greenfield. `git log` has no code, only the docs and config described in [requirements.md](../requirements.md). Nothing is implemented yet.
+The domain glossary, the first three decision records, and the architecture skeleton are merged. The skeleton defines the types and module boundaries with empty bodies, and it type-checks under `mypy --strict`. No behaviour is implemented yet. The validation corpus is pinned in `corpus/repos.yaml`, but no suite in it has been run.
 
 ## Constraints
 
 - **Language and runtime:** Python 3.11 or later. Standard library only at runtime (D16, D17).
 - **Config:** `test-adapters.toml` in the working directory. No `pyproject.toml` fallback (D18).
 - **Frameworks:** pytest and jest only in v0.1.0. Others are deferred (roadmap Phase 3).
-- **Platforms:** Linux and macOS in CI. Windows is unsupported in v0.1.0 (D20).
+- **Platforms:** Linux and macOS are tested in CI. Windows is implemented but has no test job in v0.1.0 (D20).
 - **Packaging and license:** MIT. PyPI `test-adapters` 0.1.0, installed with `pipx` or `uv tool`. Upload needs owner approval (D19).
 - **CI:** GitHub Actions in `plaktoz/test-adapters` (D22).
 - **Off-limits:** nothing beyond the non-goals in requirements §2. The library does not check out branches, generate tests, enforce TDD, or do impact analysis.
@@ -41,9 +41,9 @@ The release is done when every item below passes, with the evidence named:
 3. **Mutation and platform matrix:** criteria 20 and 21 pass on Linux and macOS, on Python 3.11 and the latest release, and on pytest 8 and 9 and jest 29 and 30. Evidence: matrix results.
 4. **Adoption:** criterion 23 passes. A fresh headless session given only the snippet runs `test-adapters run` on its first test run. Evidence: session transcript.
 5. **A/B pilot reported:** criterion 22 is recorded (3 bugs × 2 arms, plus 1 spare, at most 7 sessions). Token and turn counts are reported. Fix rate is marked "not measured". The result does not gate the release (D14).
-6. **Windows** is documented as unsupported, not as "verified by reading" (D20).
+6. **Windows:** the README says "implemented, not tested on Windows". It does not claim support or verification (D20). Testing is tracked as an open issue.
 
-Not part of the done condition: Windows support, the 30-bug A/B, run history, changed-file selection, the weekly canary, and new frameworks (roadmap Phase 3).
+Not part of the done condition: Windows testing, the 30-bug A/B, run history, changed-file selection, the weekly canary, and new frameworks (roadmap Phase 3).
 
 ## Stop conditions
 

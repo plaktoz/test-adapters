@@ -281,7 +281,7 @@ If no machine-readable report can be produced, the adapter falls back to parsing
 
 ### 6.3 Execution
 
-- Run as a child process in its own process group (POSIX) or process tree (Windows), with `cwd` and merged `env`.
+- Run as a child process in its own process group (POSIX) or process tree (Windows), with `cwd` and merged `env`. On Windows the child starts with `CREATE_NEW_PROCESS_GROUP`, and the tree is killed with `taskkill /T /F /PID <pid>`. On POSIX the group gets SIGTERM, then SIGKILL after the grace period.
 - Capture stdout and stderr to a file. The cap is `max_output_bytes` (default 5 MiB); keep the tail.
 - On timeout: send a terminate signal to the whole group or tree, wait `kill_grace_seconds` (default 5), then force-kill. Result `status = timeout`. Child processes of the test must be killed too.
 - **Counts after a timeout.** pytest's `--junitxml` and jest's `--outputFile` are written at the end of a run, so a killed run normally leaves no report. The adapter therefore:
@@ -291,7 +291,7 @@ If no machine-readable report can be produced, the adapter falls back to parsing
 
   If stdout shows which test was running when the kill happened, a `warnings` entry names it, since that is usually the hanging test.
 - Parallelism is translated per framework (`pytest -n N` if xdist is present, `jest --maxWorkers=N`). If the request cannot be honoured, the result carries a warning instead of failing.
-- **Cross-platform:** the library is designed for Linux, macOS and Windows, but v0.1.0 tests only Linux and macOS (D20). Process-group signals are POSIX-only, so Windows needs its own mechanism (a new process group plus a tree kill). Paths use `pathlib`. Files are read and written as UTF-8. Both LF and CRLF line endings are handled in parsed output.
+- **Cross-platform:** v0.1.0 implements Linux, macOS and Windows (D20). CI tests Linux and macOS only. Windows has no automated test in v0.1.0, so its behaviour is not verified (tracked as a GitHub issue, "Windows testing"). Process-group signals are POSIX-only, so Windows uses its own mechanism (6.3). Paths use `pathlib`. Files are read and written as UTF-8. Both LF and CRLF line endings are handled in parsed output.
 
 ### 6.4 Subsets and retries
 
@@ -371,7 +371,7 @@ The library defines its own typed errors and has no dependency on any error-hand
 10. Running with no arguments detects and checks the framework without executing any test.
 11. `--result-file` writes the complete JSON result, including `flaky`, even when stdout shows the default view.
 12. The `file` and `line` of a pytest failure come from the traceback, per section 6.2. If the traceback has no matching line, `line` is `null`.
-13. The test suite passes on Linux and macOS. Windows is unsupported in v0.1.0 (D20), so the README says "unsupported" for it, not "verified by reading".
+13. The test suite passes on Linux and macOS in CI. Windows is implemented (6.3) but has no test job in v0.1.0 (D20). The README says "implemented, not tested on Windows". It does not say "verified" or "supported".
 14. A sample project per framework containing an xfail (or jest todo), a non-strict xpass (pytest only) and a fixture-teardown error yields counts that match the mapping in 4.2 and satisfy `total = passed + failed + skipped + errors`.
 15. With an order-dependent test (fails in the suite, passes alone), `retry_mode: file` leaves the run `failed`, and `retry_mode: isolated` reports it under `flaky` with `retry_mode: isolated` and exits 0. The difference is the documented trade-off, so it is tested.
 16. A jest retry of one failing test uses the `-t` pattern and re-runs only that test. A jest file with two tests of the same title is retried at file level with a warning.
@@ -397,7 +397,7 @@ Criteria 1 to 18 run against fixtures the implementer writes, so they cannot sho
     | One test that fails the first time and passes after (`retry_failed: 1`) | `passed`, listed in `flaky` | 0 |
     | One setup or teardown error in a fixture | `failed`, counted in `errors` | 1 |
 
-21. **Platform and version matrix.** Criteria 19 and 20 run on Linux and macOS, with Python 3.11 and the latest release, against two major versions of each framework. Starting value: pytest 8 and 9, jest 29 and 30. Windows is deferred (D20). A combination that is not run is reported as not run, not as passing.
+21. **Platform and version matrix.** Criteria 19 and 20 run on Linux and macOS, with Python 3.11 and the latest release, against two major versions of each framework. Starting value: pytest 8 and 9, jest 29 and 30. Windows is not in this matrix in v0.1.0 (D20); its test job is the Windows testing issue. A combination that is not run is reported as not run, not as passing.
 22. **Agent A/B (pilot).** The belief under test: the default view lowers the tokens an agent spends on test output without lowering its success rate. Method: 3 seeded bugs across corpus repos, each run by the same coding agent twice, once with the raw framework command and once with `test-adapters run`. That is 3 bugs × 2 arms = 6 sessions, plus 1 spare session for a run that fails for infrastructure reasons. Harness: Claude Code headless (`claude -p`) with one model pinned in config, identical for both arms. Hard cap: 7 sessions. Record tokens read from test output and turns to green. Fix rate is recorded, but 3 bugs cannot measure it, so it is reported as "not measured". The result is reported, not gated (D14). The 30-bug study is deferred to v0.2. The numbers are recorded in `docs/`. The agent harness is chosen by configuration, not fixed in code.
 23. **Adoption.** The package installs with a single `pipx` or `uv tool` command, and ships a short snippet for an agent instruction file that tells the agent to run `test-adapters run` instead of calling the framework directly. A fresh agent session given only the snippet uses the tool on its first test run. This is checked by one headless Claude Code session, with the same pinned model as the pilot, run outside the 7-session pilot cap after owner approval.
 
@@ -426,7 +426,7 @@ The following were decided, then confirmed or changed by the owner. Each can sti
 | D17 | Standard library only at runtime | Each runtime dependency is a possible version conflict in the environments the tool is installed into. Test dependencies are unrestricted |
 | D18 | Config is `test-adapters.toml` in the working directory | TOML is read by the standard library. One file avoids a precedence rule between two config sources. A jest-only repo has no `pyproject.toml` |
 | D19 | MIT license. Published to PyPI as `test-adapters` 0.1.0, installed with `pipx` or `uv tool` | The repo was public with no license. The PyPI name is free. Upload needs owner approval of the version and README |
-| D20 | Windows is unsupported in v0.1.0 | Not run in CI. The Windows process-tree kill is untested. README says "unsupported; revisit later". Revisit in a later release |
+| D20 | Windows is implemented in v0.1.0 but not tested | The owner has no way to test Windows, so no CI job runs it. The Windows code path (`CREATE_NEW_PROCESS_GROUP`, `taskkill /T`, CRLF handling) ships anyway, so it is ready when a test environment exists. README says "implemented, not tested on Windows". Testing is tracked as a GitHub issue, labelled `ready-for-human` |
 | D21 | Coverage and parallelism are in v0.1.0 | Both are in the in-scope list. Criteria 24 and 25 cover them |
 | D22 | CI runs on GitHub Actions in `plaktoz/test-adapters`, on Linux and macOS | Public repo, so runners are free |
 | D23 | Done for v0.1.0: criteria 1–18, 24 and 25; criteria 19–21 on Linux and macOS with zero unexplained disagreements; criterion 23. Criterion 22 is a pilot report | Agreed in review. Criterion 22 is reported, not gated (D14) |
@@ -442,9 +442,9 @@ Resolved for v0.1.0:
 5. Corpus: 20 repos (12 pytest, 8 jest). A proposal with licenses and pinned SHAs goes to the owner for approval before anything is cloned.
 6. A/B harness: Claude Code headless (`claude -p`), one pinned model, 7 sessions at most (criterion 22). One adoption session runs outside that cap (criterion 23).
 7. The A/B is reported, not a release gate (D14).
-8. CI: GitHub Actions in `plaktoz/test-adapters`, Linux and macOS (D22). Windows is deferred (D20).
+8. CI: GitHub Actions in `plaktoz/test-adapters`, Linux and macOS (D22). Windows is implemented but untested (D20).
 
 Still open:
 
 - Corpus list (item 5): waiting for owner approval of the proposal.
-- Windows support: revisit after v0.1.0 (roadmap, Phase 3).
+- Windows testing: tracked as a GitHub issue, blocked on a Windows test environment (D20).
