@@ -110,6 +110,19 @@ def run_all(request: TestRequest) -> CombinedResult:
     found = _detect(request.cwd)
     if not found:
         raise UsageError("no framework detected in the working directory; pass --framework <name>")
+    if request.select:
+        # A path or node ID cannot be routed to one framework when several run (4.3, 6.4). No run happens.
+        return combine(
+            tuple(
+                _error_result(
+                    framework.name,
+                    ErrorCode.UNSUPPORTED_SELECTOR,
+                    "select cannot be used with framework all, because a path cannot be routed to one framework",
+                    "run one framework at a time with --framework <name> and --select",
+                )
+                for framework in found
+            )
+        )
     results: list[TestResult] = []
     for framework in found:
         try:
