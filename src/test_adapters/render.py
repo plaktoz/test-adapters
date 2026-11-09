@@ -8,13 +8,32 @@ from __future__ import annotations
 import json
 from collections.abc import Mapping
 from dataclasses import asdict, is_dataclass
+from dataclasses import fields as dataclass_fields
 from enum import Enum
 from pathlib import Path
 
-from test_adapters.model import CombinedResult, TestResult, wire_coverage
+from test_adapters.errors import UsageError
+from test_adapters.model import CombinedResult, Failure, TestResult, wire_coverage
 
 MESSAGE_LIMIT = 200
 FAILURE_LIMIT = 20
+# Every field a Failure carries, in declaration order. `--fields` accepts exactly these names.
+FAILURE_FIELDS: tuple[str, ...] = tuple(f.name for f in dataclass_fields(Failure))
+# Shown on every failure line. `--fields` adds only the names outside this set.
+MINIMAL_FIELDS: tuple[str, ...] = ("name", "file", "line", "message")
+
+
+def parse_fields(text: str) -> tuple[str, ...]:
+    """Split a `--fields` value into names and check each one (5.5). An unknown name is a usage error.
+
+    A repeated name is kept once, in its first position, so no column is printed twice.
+    """
+    names = tuple(dict.fromkeys(part.strip() for part in text.split(",")))
+    for name in names:
+        if name not in FAILURE_FIELDS:
+            valid = ", ".join(FAILURE_FIELDS)
+            raise UsageError(f"unknown field {name!r} in --fields (valid fields: {valid})")
+    return names
 
 
 def text_view(
@@ -24,10 +43,10 @@ def text_view(
     max_failures: int = FAILURE_LIMIT,
     message_limit: int = MESSAGE_LIMIT,
 ) -> str:
-    """Default view for one framework (5.5). `full` lifts the message cut. `fields` adds failure fields.
+    """Default view for one framework (5.5). `full` lifts the message cut. `fields` adds failure columns.
 
-    `fields` is accepted for the `--fields` flag. Only the minimal fields are printed in this
-    release, so extra names are ignored and the view says so.
+    `fields` names are checked by `parse_fields` before a run. A name in `MINIMAL_FIELDS` adds no
+    column. Any other name becomes a column after `message`, read from the failure.
     """
     lines = [f"status: {result.status.value}"]
     if result.error is not None:
@@ -46,15 +65,19 @@ def text_view(
 
     failures = result.failures
     if failures:
+        extra = tuple(name for name in fields if name not in MINIMAL_FIELDS)
+        columns = ",".join((*MINIMAL_FIELDS, *extra))
         shown = failures[:max_failures]
-        lines.append(f"failures[{len(shown)} of {len(failures)}]{{name,file,line,message}}:")
+        lines.append(f"failures[{len(shown)} of {len(failures)}]{{{columns}}}:")
         for failure in shown:
             first = failure.message.splitlines()[0] if failure.message else ""
             message = first
             if not full and len(first) > message_limit:
                 message = f"{first[:message_limit]}… ({len(first)} chars total)"
             line = "" if failure.line is None else str(failure.line)
-            lines.append(f'  {failure.name},{failure.file or ""},{line},"{message}"')
+            cells = [failure.name, failure.file or "", line, f'"{message}"']
+            cells.extend("" if (value := getattr(failure, name)) is None else str(value) for name in extra)
+            lines.append("  " + ",".join(cells))
     else:
         lines.append("failures: none")
 
@@ -62,7 +85,7 @@ def text_view(
     help_lines = []
     if failures:
         if len(failures) > max_failures:
-            help_lines.append(f"  test-adapters run --full    # shows all {len(failures)} failures")
+            help_lines.append(f"  test-adapters run --json    # shows all {len(failures)} failures")
         selectors = " ".join(f.name for f in failures[:max_failures])
         help_lines.append(f"  test-adapters run --select {selectors}    # rerun only these")
     if help_lines:

@@ -17,7 +17,7 @@ from test_adapters.combine import exit_code_for
 from test_adapters.config import resolve_config, to_request
 from test_adapters.errors import TestAdaptersError, UsageError
 from test_adapters.model import CombinedResult, Report, RetryMode, Status, TestResult
-from test_adapters.render import combined_text_view, json_view, text_view
+from test_adapters.render import combined_text_view, json_view, parse_fields, text_view
 
 EXIT_USAGE = 2
 RUN_FLAGS = (
@@ -116,6 +116,8 @@ def _cmd_doctor(cwd: Path) -> int:
 
 def _cmd_run(args: argparse.Namespace) -> int:
     cwd = Path(args.cwd)
+    # An unknown --fields name is a usage error (exit 2), checked before any test runs (5.5).
+    fields = parse_fields(args.fields) if args.fields is not None else ()
     # Flag, then environment, then config file, then default (7). A bad value raises UsageError (exit 2).
     config = resolve_config(
         cwd,
@@ -134,7 +136,6 @@ def _cmd_run(args: argparse.Namespace) -> int:
         ("--coverage", config.coverage),
         ("--retry-failed", config.retry_failed),
         ("--retry-mode", config.retry_mode != RetryMode.FILE),
-        ("--fields", args.fields),
     ):
         if used:
             raise UsageError(f"{flag} is not implemented in this release (Phase 6)")
@@ -149,9 +150,9 @@ def _cmd_run(args: argparse.Namespace) -> int:
     if args.json:
         sys.stdout.write(json_view(result) + "\n")
     elif isinstance(result, CombinedResult):
-        sys.stdout.write(combined_text_view(result, full=args.full) + "\n")
+        sys.stdout.write(combined_text_view(result, full=args.full, fields=fields) + "\n")
     else:
-        sys.stdout.write(text_view(result, full=args.full) + "\n")
+        sys.stdout.write(text_view(result, full=args.full, fields=fields) + "\n")
     return exit_code_for(result.status)
 
 
