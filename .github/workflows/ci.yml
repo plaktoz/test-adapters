@@ -1,0 +1,35 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    name: Governance and tests (${{ matrix.os }}, Python ${{ matrix.python }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+        python: ["3.11", "3.13"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+      - name: Import boundaries (ADR 0003, 5.2, 5.5)
+        env:
+          PYTHONPATH: src
+        run: uvx --from import-linter lint-imports
+      - name: Lint (narrow rule set)
+        run: uvx ruff check --no-cache .
+      - name: Type check (strict)
+        run: uvx --from mypy mypy --strict src/test_adapters
+      - name: Tests
+        run: uvx --with pytest pytest -q
