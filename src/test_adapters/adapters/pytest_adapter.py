@@ -16,7 +16,6 @@ from pathlib import Path
 from typing import Sequence
 
 from test_adapters.adapters.base import Command
-from test_adapters.errors import UsageError
 from test_adapters.model import (
     Coverage,
     CoverageFile,
@@ -37,6 +36,11 @@ _COVERAGE_STATE = "coverage-state.txt"  # "installed" or "missing"
 _COVERAGE_JSON = "coverage.json"  # written by pytest-cov's json report
 _COVERAGE_FILES = (_COVERAGE_STATE, _COVERAGE_JSON)
 _MISSING_PYTEST_COV = "pytest-cov is not installed in the interpreter that runs the tests, so coverage was not measured"
+# Work-directory state for a parallelism request. "installed" or "missing" (6.3, criterion 25).
+_XDIST_STATE = "xdist-state.txt"
+_MISSING_XDIST = "pytest-xdist is not installed in the interpreter that runs the tests, so parallelism=N was not honoured"
+# Every work-directory file that parse must skip when it looks for the JUnit report.
+_WORK_FILES = (*_COVERAGE_FILES, _XDIST_STATE)
 
 
 class PytestAdapter:
@@ -60,12 +64,19 @@ class PytestAdapter:
         in the interpreter that runs the tests. If it is missing, the command runs without coverage
         and parse adds a warning (6.5).
         """
-        if request.parallelism not in ("auto", None):
-            raise UsageError("walking skeleton does not support parallelism yet")
         report = workdir / "junit.xml"
         argv: list[str] = [sys.executable, "-m", "pytest", "-q", f"--junitxml={report}"]
         env: dict[str, str] = dict(request.env)
         report_paths: list[Path] = [report]
+        if isinstance(request.parallelism, int):
+            # A request that cannot be honoured completes and warns, so the state file records which case ran (6.3).
+            state = workdir / _XDIST_STATE
+            report_paths.append(state)
+            if _xdist_installed():
+                state.write_text("installed", encoding="utf-8")
+                argv += ["-n", str(request.parallelism)]
+            else:
+                state.write_text("missing", encoding="utf-8")
         if request.coverage:
             state = workdir / _COVERAGE_STATE
             report_paths.append(state)
@@ -87,7 +98,8 @@ class PytestAdapter:
         leaves `coverage` null and adds a warning. The status and the counts do not change (6.5).
         """
         coverage, warnings = _coverage(report_files)
-        report = next((p for p in report_files if p.is_file() and p.name not in _COVERAGE_FILES), None)
+        warnings = (*warnings, *_parallelism_warnings(report_files))
+        report = next((p for p in report_files if p.is_file() and p.name not in _WORK_FILES), None)
         if report is None:
             if timed_out:
                 return _timeout(exit_code=exit_code, warnings=warnings)
@@ -191,6 +203,19 @@ def _location(text: str) -> tuple[str | None, int | None]:
         return None, None
     last = matches[-1]
     return last.group("file"), int(last.group("line"))
+
+
+def _xdist_installed() -> bool:
+    """True when pytest-xdist can be imported by the interpreter that runs the tests (6.3)."""
+    return importlib.util.find_spec("xdist") is not None
+
+
+def _parallelism_warnings(report_files: Sequence[Path]) -> tuple[str, ...]:
+    """A warning when parallelism was requested and xdist was missing (criterion 25). Status is not changed."""
+    state = _named(report_files, _XDIST_STATE)
+    if state is not None and state.read_text(encoding="utf-8").strip() == "missing":
+        return (_MISSING_XDIST,)
+    return ()
 
 
 def _pytest_cov_installed() -> bool:
