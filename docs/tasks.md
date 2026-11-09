@@ -27,7 +27,7 @@ Approval: the owner gave blanket approval for Phase 5 task cards as issues label
 | T9 pytest parallelism | #27 | ready-for-agent | T2 | Both edit `build_command` in `pytest_adapter.py` | `pytest_adapter.py` | [x] PR #50. `./scripts/check` exit 0. A real run with xdist used `-n 2` and returned 3 passed, 1 failed, 1 skipped |
 | T10 Windows kill path | #28 | ready-for-agent | none | Edits `execution.py`. Verified by reading only | `execution.py` | [x] PR #41. Verified by reading only. Not run on Windows (issue #11) |
 | T11 live jest facts | #29 | ready-for-human | owner approves the jest install | The jest install is a dependency install, which needs approval | `docs/live-checks/jest.md` | [ ] |
-| T12 `--fields` and the default view rules | #30 | ready-for-agent | T7 | Both edit `cli.py` | `cli.py`, `render.py` | [ ] PR #51 open. Owner dropped the `--fields duration` item (issue #30) |
+| T12 `--fields` and the default view rules | #30 | ready-for-agent | T7 | Both edit `cli.py` | `cli.py`, `render.py` | [x] PR #51. `./scripts/check` exit 0 (111 passed, 3 skipped). Owner dropped the `--fields duration` item (issue #30). README lines on `--fields` are stale until T20 |
 | T13 jest run and parse | #31 | ready-for-agent | T11 | The live facts decide the parse rules | `jest_adapter.py` | [ ] |
 | T14 jest retries | #32 | ready-for-agent | T13, T3 | Edits `jest_adapter.py` after T13. Uses the retry loop from T3 | `jest_adapter.py` | [ ] |
 | T15 jest coverage | #33 | ready-for-agent | T14 | Edits `jest_adapter.py` after T14 | `jest_adapter.py` | [ ] |
