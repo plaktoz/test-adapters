@@ -23,13 +23,5 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python }}
-      - name: Import boundaries (ADR 0003, 5.2, 5.5)
-        env:
-          PYTHONPATH: src
-        run: uvx --from import-linter lint-imports
-      - name: Lint (narrow rule set)
-        run: uvx ruff check --no-cache .
-      - name: Type check (strict)
-        run: uvx --from mypy mypy --strict src/test_adapters
-      - name: Tests
-        run: uvx --with pytest pytest -q
+      - name: Gate (scripts/check: import boundaries, lint, type check, tests, build)
+        run: ./scripts/check
