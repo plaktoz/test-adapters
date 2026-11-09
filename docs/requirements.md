@@ -47,12 +47,16 @@ Typical callers:
 ```
 { cwd, framework?, command_override?, select[]?, timeout_seconds,
   parallelism?, coverage: bool, env{}, retry_failed: int, retry_mode,
-  require_tests: bool }
+  require_tests: bool, kill_grace_seconds: int, max_output_bytes: int }
 ```
 
 - `select` is a list of test file paths or node IDs.
 - `framework` omitted means auto-detect. If more than one framework is detected, the run fails with `ambiguous` (4.3). `framework: "all"` runs every detected framework and returns a combined result (4.4).
 - `retry_mode` is `file` (default) or `isolated`. It has no effect when `retry_failed` is 0. See 6.4.
+- `kill_grace_seconds` (default 5) and `max_output_bytes` (default 5 MiB) are the execution settings in 6.3 and section 7. They are request fields so a value in `test-adapters.toml` reaches `run()`.
+- `parallelism` is an integer or `"auto"` (default). `"auto"` is a request value, not a missing one; omitting `framework` is what means auto-detect.
+- `framework` is a registered adapter name, or `"all"`. The set of names is open (5.2), so an unknown name is a usage error raised by the registry, not a type error.
+- A request is immutable. `env` is a read-only mapping.
 
 ### 4.2 TestResult
 
@@ -92,6 +96,8 @@ Typical callers:
 Rules:
 
 - `error` is `null` unless `status == error`. Otherwise it is `{ "code": "<code>", "message": "...", "hint": "..." }`.
+- `framework` is `null` only for an `ambiguous` error, because no single framework was chosen (4.3).
+- A `TestResult` that breaks these rules cannot be built. The constructor rejects it, so an adapter cannot return `passed` with failures, `failed` with `null` counts, or counts that do not add up.
 - `failures[].line` is `null` when no line can be determined. `file` is `null` when no file can be determined.
 - `flaky` lists tests that failed at least once and passed on a later attempt. It is `[]` when there are none. Each entry records the `retry_mode` that produced the pass, so a caller can discount `isolated` passes (see 6.4).
 - `warnings` is a list of strings: requests that could not be honoured (for example, parallelism requested but the plugin is missing), or missing coverage tooling.
@@ -126,6 +132,8 @@ Rules:
 
 Failing tests are results, not errors.
 
+An `ambiguous` result has `framework: null` and `null` counts, and its message lists the detected frameworks.
+
 ### 4.4 CombinedResult
 
 Returned by `run_all` and by `run --framework all`.
@@ -139,7 +147,7 @@ Returned by `run_all` and by `run --framework all`.
 - `results` has one `TestResult` per detected framework, in detection order. With one detected framework it still has one entry, so the shape never changes under the caller.
 - Frameworks run one after another, not concurrently, so they do not contend for ports, CPU or the working tree. Each run has its own `timeout_seconds`.
 - A framework that cannot run (for example `tool_missing`) appears with its own `status: error`. It does not stop the others.
-- The overall `status` is the worst entry, in this order: `error`, `timeout`, `failed`, `passed`. `error` ranks first because a framework with no trustworthy result means the repo is not known to be green.
+- The overall `status` is derived from `results` and is never stored, so it cannot disagree with them. It is the worst entry, in this order: `error`, `timeout`, `failed`, `passed`. `error` ranks first because a framework with no trustworthy result means the repo is not known to be green.
 - Counts are not summed. Each `TestResult` keeps its own.
 - The exit code follows the overall `status` (5.4). `--result-file` writes the `CombinedResult`.
 
@@ -160,12 +168,16 @@ Returned by `run_all` and by `run --framework all`.
 ### 5.2 Adapter interface (for adding frameworks)
 
 ```
+name, command_template, report_format          (strings; used by adapter_info)
 detect(cwd) -> bool
-build_command(request) -> argv[] + env + report_paths
-parse(report_files, exit_code, stdout) -> TestResult
+build_command(request, workdir) -> argv[] + env + report_paths
+parse(report_files, exit_code, stdout, timed_out) -> TestResult
+requires() -> [binary or plugin]
 ```
 
-Adding a framework must not require changing existing code. Adapters register through a registry or entry point.
+- `report_files` are the report paths that exist after the run. An empty list means no report: the adapter reads `stdout` and sets `degraded`. `exit_code` is `null` for a killed run.
+- `parse(framework, report_path)` in 5.1 calls the adapter with one report file and no stdout. `parse_text(framework, stdout)` calls it with no report file.
+- Adding a framework must not require changing existing code. Adapters register through a registry, in a fixed detection order. The built-in pytest and jest adapters register when the package is imported. A second registration of one name is a usage error.
 
 ### 5.3 CLI
 

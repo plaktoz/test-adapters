@@ -3,10 +3,12 @@
 Public surface (see docs/requirements.md section 5.1). Everything else is internal.
 """
 
-from test_adapters.api import detect, doctor, parse, parse_text, run, run_all
+from test_adapters.api import adapter_info, detect, doctor, parse, parse_text, run, run_all
 from test_adapters.model import (
+    AdapterInfo,
     CombinedResult,
     Coverage,
+    CoverageFile,
     ErrorCode,
     ErrorInfo,
     Failure,
@@ -22,8 +24,10 @@ from test_adapters.model import (
 from test_adapters.errors import TestAdaptersError
 
 __all__ = [
+    "AdapterInfo",
     "CombinedResult",
     "Coverage",
+    "CoverageFile",
     "ErrorCode",
     "ErrorInfo",
     "Failure",
@@ -36,6 +40,7 @@ __all__ = [
     "TestAdaptersError",
     "TestRequest",
     "TestResult",
+    "adapter_info",
     "detect",
     "doctor",
     "parse",

@@ -2,15 +2,13 @@
 
 from __future__ import annotations
 
-from test_adapters.model import CombinedResult, Status, TestResult
+from test_adapters.model import STATUS_RANK, CombinedResult, Status, TestResult
 
-# Worst-first order for the overall status (4.4). error outranks failed: a framework with no
-# trustworthy result means the repo is not known to be green.
-STATUS_RANK: tuple[Status, ...] = (Status.ERROR, Status.TIMEOUT, Status.FAILED, Status.PASSED)
+__all__ = ["STATUS_RANK", "combine", "exit_code_for"]
 
 
 def combine(results: tuple[TestResult, ...]) -> CombinedResult:
-    """Overall status is the worst entry. Counts are not summed (4.4)."""
+    """Wrap results in order. The overall status is derived by `CombinedResult.status`. Counts are not summed (4.4)."""
     raise NotImplementedError
 
 

@@ -15,6 +15,8 @@ from test_adapters.model import TestRequest, TestResult
 
 class JestAdapter:
     name = "jest"
+    command_template = "npx jest --json --outputFile={report} {select}"
+    report_format = "jest-json"
 
     def detect(self, cwd: Path) -> bool:
         """jest.config.*, or package.json with a jest key or jest in scripts/devDependencies."""
@@ -24,7 +26,7 @@ class JestAdapter:
         """`--json --outputFile=<file>`. Name selectors go through `-t` with a regex-escaped fullName (6.4)."""
         raise NotImplementedError
 
-    def parse(self, command: Command, exit_code: int | None, stdout: str, timed_out: bool) -> TestResult:
+    def parse(self, report_files: Sequence[Path], exit_code: int | None, stdout: str, timed_out: bool) -> TestResult:
         """JSON report. Suites that fail to load map to ERROR/collection (4.2)."""
         raise NotImplementedError
 
