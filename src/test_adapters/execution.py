@@ -2,8 +2,9 @@
 
 Two implementations behind one function. POSIX uses a process group and SIGTERM/SIGKILL.
 Windows starts the child in a new process group and kills the tree with `taskkill /T /F`.
-The Windows path is implemented but has no CI job in v0.1.0 (D20). Its tests are marked
-`windows_untested` and run only when a Windows environment is available.
+The Windows path is implemented but has no CI job in v0.1.0 (D20). Its tests in
+`tests/test_windows_kill.py` mock `subprocess` and run on Linux and macOS. They check the
+command built, not the behaviour on Windows.
 """
 
 from __future__ import annotations
@@ -41,29 +42,40 @@ def run_process(
     """
     import os
     import subprocess
+    import sys
     import tempfile
     import time
-
-    if os.name != "posix":
-        raise NotImplementedError("walking skeleton runs process-group kill on POSIX only (6.3)")
 
     out_fd, out_name = tempfile.mkstemp(prefix="test-adapters-", suffix=".log")
     started = time.monotonic()
     with os.fdopen(out_fd, "wb") as out:
-        proc = subprocess.Popen(
-            list(command.argv),
-            cwd=cwd,
-            env={**os.environ, **command.env},
-            stdout=out,
-            stderr=subprocess.STDOUT,
-            start_new_session=True,
-        )
+        if sys.platform == "win32":
+            proc = subprocess.Popen(
+                list(command.argv),
+                cwd=cwd,
+                env={**os.environ, **command.env},
+                stdout=out,
+                stderr=subprocess.STDOUT,
+                creationflags=subprocess.CREATE_NEW_PROCESS_GROUP,
+            )
+        else:
+            proc = subprocess.Popen(
+                list(command.argv),
+                cwd=cwd,
+                env={**os.environ, **command.env},
+                stdout=out,
+                stderr=subprocess.STDOUT,
+                start_new_session=True,
+            )
         timed_out = False
         try:
             exit_code: int | None = proc.wait(timeout=timeout_seconds)
         except subprocess.TimeoutExpired:
             timed_out = True
-            kill_group_posix(proc.pid, kill_grace_seconds)
+            if sys.platform == "win32":
+                kill_tree_windows(proc.pid)
+            else:
+                kill_group_posix(proc.pid, kill_grace_seconds)
             proc.wait()
             exit_code = None
 
@@ -91,8 +103,19 @@ def _tail_cap(path: Path, limit: int) -> None:
 
 
 def kill_tree_windows(pid: int) -> None:
-    """Kill a process and every descendant with `taskkill /T /F /PID <pid>` (6.3)."""
-    raise NotImplementedError
+    """Kill a process and every descendant with `taskkill /T /F /PID <pid>` (6.3).
+
+    The return code is ignored on purpose. taskkill fails when the PID is already gone,
+    and the caller only needs the tree to be dead.
+    """
+    import subprocess
+
+    subprocess.run(
+        ["taskkill", "/T", "/F", "/PID", str(pid)],
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+        check=False,
+    )
 
 
 def kill_group_posix(pgid: int, grace_seconds: int) -> None:
