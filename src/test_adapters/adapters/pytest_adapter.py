@@ -11,6 +11,8 @@ from test_adapters.model import TestRequest, TestResult
 
 class PytestAdapter:
     name = "pytest"
+    command_template = "pytest --junitxml={report} {select}"
+    report_format = "junit-xml"
 
     def detect(self, cwd: Path) -> bool:
         """pytest.ini, pyproject [tool.pytest*], tox.ini/setup.cfg pytest section, conftest.py, or tests/test_*.py."""
@@ -20,7 +22,7 @@ class PytestAdapter:
         """`--junitxml=<file>`; selectors are node IDs or file paths passed as arguments."""
         raise NotImplementedError
 
-    def parse(self, command: Command, exit_code: int | None, stdout: str, timed_out: bool) -> TestResult:
+    def parse(self, report_files: Sequence[Path], exit_code: int | None, stdout: str, timed_out: bool) -> TestResult:
         """JUnit XML first. file and line come from the traceback's `path:line: ErrorType` line (6.2)."""
         raise NotImplementedError
 
