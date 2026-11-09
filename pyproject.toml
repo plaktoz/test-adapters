@@ -1,0 +1,25 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "test-adapters"
+version = "0.1.0"
+description = "Run pytest or jest and return one normalised result for agents and CI."
+readme = "README.md"
+license = "MIT"
+requires-python = ">=3.11"
+dependencies = []  # Standard library only at runtime (ADR 0003, D17)
+
+[project.scripts]
+test-adapters = "test_adapters.cli:main"
+
+[project.optional-dependencies]
+dev = ["mypy>=1.10", "pytest>=8"]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/test_adapters"]
+
+[tool.mypy]
+strict = true
+files = ["src/test_adapters"]
