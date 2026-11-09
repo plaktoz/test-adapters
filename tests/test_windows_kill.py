@@ -73,7 +73,8 @@ class TestKillTreeWindows:
         assert kwargs.get("check", False) is False
 
     def test_missing_process_does_not_raise(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        # taskkill exits 128 when the process is already gone. That is not an error here.
+        # A non-zero exit from taskkill, here 128, means the process may already be gone. The
+        # code ignores it. The value 128 is not verified on Windows; only the ignore rule is tested.
         rec = _install_fakes(monkeypatch, pid=4321, hang=False, run_returncode=128)
 
         kill_tree_windows(4321)
