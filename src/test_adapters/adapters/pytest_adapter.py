@@ -28,3 +28,5 @@ class PytestAdapter:
 
     def requires(self) -> Sequence[str]:
         return ("pytest",)
+
+from test_adapters.render import text_view  # deliberate: adapters must not reach render (CI exit check)
