@@ -26,14 +26,14 @@ Approval: the owner gave blanket approval for Phase 5 task cards as issues label
 | T8 collection and no-tests errors | #26 | ready-for-agent | none | Tests only. The behaviour already exists | none | [x] PR #40. `./scripts/check` exit 0 |
 | T9 pytest parallelism | #27 | ready-for-agent | T2 | Both edit `build_command` in `pytest_adapter.py` | `pytest_adapter.py` | [x] PR #50. `./scripts/check` exit 0. A real run with xdist used `-n 2` and returned 3 passed, 1 failed, 1 skipped |
 | T10 Windows kill path | #28 | ready-for-agent | none | Edits `execution.py`. Verified by reading only | `execution.py` | [x] PR #41. Verified by reading only. Not run on Windows (issue #11) |
-| T11 live jest facts | #29 | ready-for-human | owner approves the jest install | The jest install is a dependency install, which needs approval | `docs/live-checks/jest.md` | [ ] |
+| T11 live jest facts | #29 | ready-for-human | none. Owner approved the jest install on 2026-11-12 (D1) | Approved, so it can start | `docs/live-checks/jest.md` | [ ] |
 | T12 `--fields` and the default view rules | #30 | ready-for-agent | T7 | Both edit `cli.py` | `cli.py`, `render.py` | [x] PR #51. `./scripts/check` exit 0 (111 passed, 3 skipped). Owner dropped the `--fields duration` item (issue #30). README lines on `--fields` are stale until T20 |
 | T13 jest run and parse | #31 | ready-for-agent | T11 | The live facts decide the parse rules | `jest_adapter.py` | [ ] |
 | T14 jest retries | #32 | ready-for-agent | T13, T3 | Edits `jest_adapter.py` after T13. Uses the retry loop from T3 | `jest_adapter.py` | [ ] |
 | T15 jest coverage | #33 | ready-for-agent | T14 | Edits `jest_adapter.py` after T14 | `jest_adapter.py` | [ ] |
-| T16 corpus agreement and mutation matrix | #34 | ready-for-human | T13, T14, T15; owner approves the corpus and the CI clone | The corpus needs jest, and the clone is a stop condition | `.github/workflows/ci.yml` | [ ] |
-| T17 agent A/B pilot | #35 | ready-for-human | T16; owner approves 7 sessions; the gateway fixes the model, so the pilot records it | The pilot needs the corpus result first, and spend needs approval | `docs/ab-pilot.md` | [ ] |
-| T18 adoption and PyPI | #36 | ready-for-human | T12, T13, T16, T17, T20; owner approves the session and the upload | Both need owner approval. Both are stop conditions | `docs/adoption.md`, `pyproject.toml` | [ ] |
+| T16 corpus agreement and mutation matrix | #34 | ready-for-human | T13, T14, T15; owner approved the corpus and the CI clone for the T16 job on 2026-11-12 (D7) | The corpus needs jest | `.github/workflows/ci.yml` | [ ] |
+| T17 agent A/B pilot | #35 | ready-for-human | T16; T16. Owner approved 7 sessions at most, on the model the gateway gives, on 2026-11-12 (D8) | The pilot needs the corpus result first | `docs/ab-pilot.md` | [ ] |
+| T18 adoption and PyPI | #36 | ready-for-human | T12, T13, T16, T17, T20, T19; the owner holds the PyPI upload and the adoption session until T19 passes (D9, D10) | Both stay on hold until T19 passes | `docs/adoption.md`, `pyproject.toml` | [ ] |
 | T19 integration | #37 | ready-for-agent | T1 to T10, T12 to T15, T20 | The full flow runs on the merged result | `docs/tasks.md`, `docs/requirements.md` (6.2 only), `docs/live-checks/` | [ ] |
 | T20 remove the four refusals, update the README | #38 | ready-for-agent | T2, T3, T7, T9, T12, T14, T15 | Only this card edits the `cli.py` refusals and the README | `cli.py` (refusal block), `README.md` | [ ] |
 
@@ -53,6 +53,25 @@ Tasks in one round have no blockers between them, and their files do not overlap
 - [x] Every task has acceptance checks, an allowed-files list, and blockers. (Each issue body lists them.)
 - [x] No two tasks that can run in parallel share allowed files. Checked by hand against the rounds above.
 - [ ] The owner approves the breakdown. Blanket approval covers the issues. The owner should confirm that the HITL tasks (T11, T16, T17, T18) stay on hold until approved.
+
+## Owner decisions, 2026-11-12
+
+The owner answered ten decisions. Each is recorded where the work it governs lives.
+
+| ID | Decision | Where it is applied |
+|----|----------|---------------------|
+| D1 | Install `jest@29` and `jest@30` from npm for T11 only | T11 row; scratch folders outside the repo |
+| D2 | Keep the environment names `TEST_ADAPTERS_<KEY>` | T7 (no code change) |
+| D3 | A body failure plus a teardown error counts once, as `failed`. The teardown message goes into the failure message | Issue #42 |
+| D4 | Criteria 22 and 23 and open item 6 say "the model the gateway gives, recorded" | `docs/requirements.md`, `docs/architecture/vision.md` line 33, `docs/roadmap.md` line 44 |
+| D5 | Delete the `.agent-garage-source` files under `.claude/skills/`. Do not rewrite git history | `.claude/skills/*` |
+| D6 | Keep `pytest -v` on every run | T5 (no code change) |
+| D7 | Approve the CI clone of `corpus/repos.yaml` for the T16 job only | T16 row |
+| D8 | Approve the A/B pilot: 7 sessions at most, on the gateway model. T17 runs after T16 passes | T17 row |
+| D9 | Hold the PyPI upload until T19 passes | T18 row |
+| D10 | Hold the adoption session until T19 passes | T18 row |
+
+The deleted `.agent-garage-source` files stay in git history, which still holds the local path.
 
 ## Notes
 

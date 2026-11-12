@@ -41,7 +41,7 @@ Not part of the first release. Each item needs its own requirements section befo
 |------|------------|----------|
 | GitHub Actions CI in `plaktoz/test-adapters`, Linux and macOS runners | Phase 2 (19 to 21) | Decided (D22) |
 | The corpus list (20 repos, 12 pytest and 8 jest, pinned SHAs) | Phase 2 (19 to 21) | Approve the proposal before anything is cloned |
-| Agent A/B pilot: 7 sessions, Claude Code headless, one pinned model | Phase 2 (22) | Approved |
+| Agent A/B pilot: 7 sessions, Claude Code headless, the model the gateway gives, recorded | Phase 2 (22) | Approved |
 | Adoption check: 1 session, outside the pilot cap | Phase 2 (23) | Approve before it runs |
 | PyPI upload of `test-adapters` 0.1.0 | Phase 2 (23) | Approve the version and README before upload |
 | Whether impact analysis becomes in scope | Phase 3 | Decide when Phase 2 is done |
