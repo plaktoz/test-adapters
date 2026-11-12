@@ -30,7 +30,7 @@ The domain glossary, the first three decision records, and the architecture skel
 - **CI:** GitHub Actions in `plaktoz/test-adapters` (D22).
 - **Off-limits:** nothing beyond the non-goals in requirements §2. The library does not check out branches, generate tests, enforce TDD, or do impact analysis.
 - **Deadline:** none. Phases end on exit checks, not on dates.
-- **Spend:** the agent A/B pilot is capped at 7 Claude Code headless sessions, one pinned model. One adoption session runs outside that cap after approval (D23, criteria 22 and 23).
+- **Spend:** the agent A/B pilot is capped at 7 Claude Code headless sessions, on the model the gateway gives, recorded for both arms. One adoption session runs outside that cap after approval (D23, criteria 22 and 23).
 
 ## Done condition for v0.1.0 (pass/fail)
 
