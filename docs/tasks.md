@@ -26,7 +26,7 @@ Approval: the owner gave blanket approval for Phase 5 task cards as issues label
 | T8 collection and no-tests errors | #26 | ready-for-agent | none | Tests only. The behaviour already exists | none | [x] PR #40. `./scripts/check` exit 0 |
 | T9 pytest parallelism | #27 | ready-for-agent | T2 | Both edit `build_command` in `pytest_adapter.py` | `pytest_adapter.py` | [x] PR #50. `./scripts/check` exit 0. A real run with xdist used `-n 2` and returned 3 passed, 1 failed, 1 skipped |
 | T10 Windows kill path | #28 | ready-for-agent | none | Edits `execution.py`. Verified by reading only | `execution.py` | [x] PR #41. Verified by reading only. Not run on Windows (issue #11) |
-| T11 live jest facts | #29 | ready-for-human | none. Owner approved the jest install on 2026-11-12 (D1) | Approved, so it can start | `docs/live-checks/jest.md` | [ ] |
+| T11 live jest facts | #29 | ready-for-human | none. Owner approved the jest install on 2026-11-12 (D1) | Approved, so it can start | `docs/live-checks/jest.md` | [x] PR #57. Live jest 29.7.0 and 30.5.2 on Node v26.13.0, macOS; installs in `/tmp`, none in the repo. `disabled` and `skipped` never appear on a test; `-t` with no match exits 0; the 6.4 name clash is not verified. T19 moves the results into 6.2 |
 | T12 `--fields` and the default view rules | #30 | ready-for-agent | T7 | Both edit `cli.py` | `cli.py`, `render.py` | [x] PR #51. `./scripts/check` exit 0 (111 passed, 3 skipped). Owner dropped the `--fields duration` item (issue #30). README lines on `--fields` are stale until T20 |
 | T13 jest run and parse | #31 | ready-for-agent | T11 | The live facts decide the parse rules | `jest_adapter.py` | [ ] |
 | T14 jest retries | #32 | ready-for-agent | T13, T3 | Edits `jest_adapter.py` after T13. Uses the retry loop from T3 | `jest_adapter.py` | [ ] |
@@ -72,6 +72,8 @@ The owner answered ten decisions. Each is recorded where the work it governs liv
 | D10 | Hold the adoption session until T19 passes | T18 row |
 
 The deleted `.agent-garage-source` files stay in git history, which still holds the local path.
+
+- Issue #42 (pytest double count) is done: PR #56. `./scripts/check` exit 0 (130 passed, 4 skipped), run by the worker and again by the lead. The rule is owner decision D3.
 
 ## Notes
 
