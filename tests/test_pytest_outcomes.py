@@ -4,6 +4,7 @@ Seam: `PytestAdapter.parse` on a real JUnit report. The report comes from runnin
 on a fixture project under `tests/fixtures/pytest_outcomes/`:
 - `tests/`: one case per outcome (plain pass, xfail, non-strict xpass, strict xpass, teardown error).
 - `teardown_only/`: a body that passes and a teardown that errors, with nothing else to fail the run.
+- `body_and_teardown/`: a body that fails and a teardown that errors. pytest writes two testcases for it.
 
 Expected counts are written out by hand from the 4.2 table, not computed from the adapter.
 """
@@ -51,3 +52,21 @@ def test_teardown_error_alone_makes_the_run_failed(tmp_path: Path):
     assert result.errors > 0
     assert result.status is Status.FAILED
     assert result.error is None
+
+
+def test_body_failure_plus_teardown_error_counts_once_as_failed(tmp_path: Path):
+    # Owner decision (issue #42): one test, one outcome. The body failure wins, so the test is failed, not errors.
+    result = run_fixture(FIXTURES / "body_and_teardown", tmp_path)
+    assert (result.total, result.passed, result.failed, result.skipped, result.errors) == (1, 0, 1, 0, 0)
+    assert result.total == result.passed + result.failed + result.skipped + result.errors
+    assert result.status is Status.FAILED
+    assert result.error is None
+
+
+def test_teardown_message_goes_into_the_failure_message(tmp_path: Path):
+    result = run_fixture(FIXTURES / "body_and_teardown", tmp_path)
+    assert len(result.failures) == 1
+    failure = result.failures[0]
+    assert failure.name == "tests/test_body_and_teardown.py::test_body_and_teardown_fail"
+    assert "assert 'value' == 'other'" in failure.message
+    assert "teardown broke" in failure.message
