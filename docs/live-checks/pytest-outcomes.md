@@ -70,8 +70,58 @@ A second fixture, `tests/fixtures/pytest_outcomes/teardown_only/`, has one passi
 
 A probe outside the repo ran one test whose body fails (`assert False`) and whose fixture teardown raises. pytest wrote two `<testcase>` elements with the same `classname` and `name`: one with a `<failure>` child and one with an `<error>` child. The adapter counts each element, so one test is counted twice (`failed 1, errors 1, total 2`).
 
-Requirements 4.2 say each test is counted once, by its final outcome. This case is not in the T1 fixture, so the parser does not handle it yet. The fix belongs to a later task.
+Requirements 4.2 say each test is counted once, by its final outcome. This case is not in the T1 fixture. Issue #42 fixes it; see the next section.
 
-## Verification
+## Verification (T1)
 
 - `uvx --with pytest pytest -q tests/test_pytest_outcomes.py`: output is recorded in the T1 task state in the issue.
+
+## Fix: a body failure plus a teardown error counts once, as failed (issue #42)
+
+Owner decision: a test whose body fails and whose teardown also fails is counted once, as `failed`. The teardown message goes into the failure message. A teardown-only error (body passed) still counts as an error. The timeout path already counts each test once and is unchanged.
+
+- pytest: 9.2.0, run through `uvx --with pytest pytest`.
+- Fixture: `tests/fixtures/pytest_outcomes/body_and_teardown/tests/test_body_and_teardown.py`.
+- Command: `pytest -q --junitxml=<file>` run inside the fixture directory. Exit code 1.
+
+### Live JUnit XML
+
+Two `<testcase>` elements, same `classname` and `name`. The `time` and `timestamp` values are as written.
+
+```xml
+<?xml version="1.0" encoding="utf-8"?><testsuites name="pytest tests"><testsuite name="pytest" errors="1" failures="1" skipped="0" tests="2" time="0.020" timestamp="2026-11-12T23:24:03.191013+08:00" hostname="TIANsIBMMacbook.home.arpa"><testcase classname="tests.test_body_and_teardown" name="test_body_and_teardown_fail" time="0.000"><failure message="AssertionError: assert 'value' == 'other'&#10;  &#10;  - other&#10;  + value">broken_teardown = 'value'
+
+    def test_body_and_teardown_fail(broken_teardown):
+        # Both the body and the teardown fail. pytest writes two testcases for this one test (issue #42).
+&gt;       assert broken_teardown == "other"
+E       AssertionError: assert 'value' == 'other'
+E         
+E         - other
+E         + value
+
+tests/test_body_and_teardown.py:12: AssertionError</failure></testcase><testcase classname="tests.test_body_and_teardown" name="test_body_and_teardown_fail" time="0.000"><error message="failed on teardown with &quot;RuntimeError: teardown broke&quot;">@pytest.fixture
+    def broken_teardown():
+        yield "value"
+&gt;       raise RuntimeError("teardown broke")
+E       RuntimeError: teardown broke
+
+tests/test_body_and_teardown.py:7: RuntimeError</error></testcase></testsuite></testsuites>
+```
+
+### Parser output before and after
+
+Same XML file, parsed by the adapter before the fix (`HEAD` at the start of the task) and after it.
+
+```
+before total 2 passed 0 failed 1 skipped 0 errors 1 status failed
+after  total 1 passed 0 failed 1 skipped 0 errors 0 status failed
+  failure name:    tests/test_body_and_teardown.py::test_body_and_teardown_fail
+  failure file:    tests/test_body_and_teardown.py  line: 12
+  failure message: AssertionError: assert 'value' == 'other'
+                   (assertion diff lines omitted)
+                   teardown also failed: failed on teardown with "RuntimeError: teardown broke"
+```
+
+After the fix `total 1 = 0 + 1 + 0 + 0`. The teardown-only fixture still gives `total 1, errors 1, status failed`.
+
+Tests: `test_body_failure_plus_teardown_error_counts_once_as_failed` and `test_teardown_message_goes_into_the_failure_message` in `tests/test_pytest_outcomes.py`.

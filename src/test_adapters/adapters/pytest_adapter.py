@@ -141,32 +141,41 @@ class PytestAdapter:
         cases = [case for suite in suites for case in suite.iter("testcase")]
         failures: list[Failure] = []
         passed = failed = skipped = errors = 0
-        for case in cases:
-            classname = case.get("classname", "")
-            name = f"{classname}::{case.get('name', '')}"
-            if case.find("error") is not None:
-                if case.get("classname", "") == "":
-                    # Collection error (4.3): the suite did not load.
-                    return _error(
-                        ErrorCode.COLLECTION,
-                        case.get("name", "collection failed"),
-                        stdout_hint=False,
-                        exit_code=exit_code,
-                        warnings=warnings,
-                    )
-                errors += 1
-            elif case.find("failure") is not None:
-                failed += 1
-                body = case.find("failure")
-                assert body is not None
-                text = (body.text or "") + "\n" + (body.get("message") or "")
-                file, line = _location(text)
-                node = _node_id(file, classname, case.get("name", "")) if file else name
-                failures.append(Failure(name=node, message=body.get("message") or "", file=file, line=line))
-            elif case.find("skipped") is not None:
-                skipped += 1
-            else:
-                passed += 1
+        for group in _by_test(cases):
+            teardown = _teardown_error(group)
+            if teardown is not None:
+                # Body failed and teardown errored: pytest wrote two testcases for one test. Count it once, as
+                # failed, and keep the teardown message in the failure message (4.2, issue #42).
+                group = [c for c in group if c.find("error") is None]
+            for case in group:
+                classname = case.get("classname", "")
+                name = f"{classname}::{case.get('name', '')}"
+                if case.find("error") is not None:
+                    if case.get("classname", "") == "":
+                        # Collection error (4.3): the suite did not load.
+                        return _error(
+                            ErrorCode.COLLECTION,
+                            case.get("name", "collection failed"),
+                            stdout_hint=False,
+                            exit_code=exit_code,
+                            warnings=warnings,
+                        )
+                    errors += 1
+                elif case.find("failure") is not None:
+                    failed += 1
+                    body = case.find("failure")
+                    assert body is not None
+                    text = (body.text or "") + "\n" + (body.get("message") or "")
+                    file, line = _location(text)
+                    node = _node_id(file, classname, case.get("name", "")) if file else name
+                    message = body.get("message") or ""
+                    if teardown:
+                        message = f"{message}\nteardown also failed: {teardown}"
+                    failures.append(Failure(name=node, message=message, file=file, line=line))
+                elif case.find("skipped") is not None:
+                    skipped += 1
+                else:
+                    passed += 1
 
         total = passed + failed + skipped + errors
         if total == 0:
@@ -202,6 +211,26 @@ class PytestAdapter:
     def requires(self) -> Sequence[str]:
         """The `pytest` module, importable by the interpreter that runs `build_command`."""
         return ("pytest",)
+
+
+def _by_test(cases: Sequence[ET.Element]) -> list[list[ET.Element]]:
+    """Testcases grouped by `classname` and `name`, in report order. One test can write several elements (4.2)."""
+    groups: dict[tuple[str, str], list[ET.Element]] = {}
+    for case in cases:
+        groups.setdefault((case.get("classname", ""), case.get("name", "")), []).append(case)
+    return list(groups.values())
+
+
+def _teardown_error(group: Sequence[ET.Element]) -> str | None:
+    """The teardown message when a group holds a failed body and an errored teardown, else None.
+
+    A collection error has an empty classname and is never merged.
+    """
+    if not group[0].get("classname") or not any(c.find("failure") is not None for c in group):
+        return None
+    errored = [c.find("error") for c in group if c.find("error") is not None]
+    messages = [e.get("message") or "teardown failed" for e in errored if e is not None]
+    return "; ".join(messages) if messages else None
 
 
 def _node_id(file: str, classname: str, name: str) -> str:
