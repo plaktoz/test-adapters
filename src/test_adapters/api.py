@@ -16,7 +16,7 @@ from test_adapters.adapters import registry
 from test_adapters.adapters.base import Adapter
 from test_adapters.combine import combine
 from test_adapters.detection import detect as _detect
-from test_adapters.errors import UsageError
+from test_adapters.errors import AdapterError, UsageError
 from test_adapters.execution import run_process
 from test_adapters.model import (
     AdapterInfo,
@@ -61,13 +61,13 @@ def run(request: TestRequest) -> TestResult:
         name = request.framework
 
     adapter = registry.get(name)
-    missing = _missing(adapter)
+    missing = _missing(adapter, request.cwd)
     if missing:
         return _error_result(
             name,
             ErrorCode.TOOL_MISSING,
             f"{adapter.name} needs {', '.join(missing)}, which was not found",
-            f"install {', '.join(missing)} into the interpreter that runs test-adapters",
+            _install_hint(adapter, missing),
         )
 
     first = _run_once(adapter, request)
@@ -84,7 +84,11 @@ def run(request: TestRequest) -> TestResult:
 def _run_once(adapter: Adapter, request: TestRequest) -> TestResult:
     """One execution of the framework in a fresh workdir, so no attempt reads another's report (6.4)."""
     workdir = Path(tempfile.mkdtemp(prefix="test-adapters-run-"))
-    command = adapter.build_command(request, workdir)
+    try:
+        command = adapter.build_command(request, workdir)
+    except AdapterError as exc:
+        # An adapter that cannot express the request (4.3, base.py) gives a result, not an exception.
+        return _error_result(adapter.name, exc.code, exc.message, exc.hint)
     outcome = run_process(
         command,
         request.cwd,
@@ -173,20 +177,37 @@ def doctor(cwd: Path) -> Report:
         FrameworkStatus(
             name=adapter.name,
             detected=adapter.detect(cwd),
-            available=not _missing(adapter),
-            hint="" if not _missing(adapter) else f"install {', '.join(_missing(adapter))}",
+            available=not missing,
+            hint=f"install {', '.join(missing)}" if missing else "",
         )
         for adapter in registry.all_adapters()
+        for missing in (_missing(adapter, cwd),)
     )
     return Report(frameworks=statuses)
 
 
-def _missing(adapter: Adapter) -> list[str]:
-    """Requirements of `adapter` that are neither on PATH nor importable (5.1, 6.1)."""
+def _install_hint(adapter: Adapter, missing: list[str]) -> str:
+    """How to get `missing`. An adapter whose tool lives in the project says so itself (`install_hint`)."""
+    hint = getattr(adapter, "install_hint", None)
+    if hint is not None:
+        return str(hint)
+    return f"install {', '.join(missing)} into the interpreter that runs test-adapters"
+
+
+def _missing(adapter: Adapter, cwd: Path) -> list[str]:
+    """Requirements of `adapter` that are not available (5.1, 6.1).
+
+    A requirement is present when it is on PATH or importable. An adapter whose tool lives in the
+    project (jest in `node_modules`) may also define `missing_in(cwd)`, which names what that
+    project lacks. `shutil.which("npx")` alone would say jest is available in a project without it.
+    """
     missing: list[str] = []
     for name in adapter.requires():
         if shutil.which(name) is None and importlib.util.find_spec(name) is None:
             missing.append(name)
+    project_check = getattr(adapter, "missing_in", None)
+    if project_check is not None:
+        missing.extend(project_check(cwd))
     return missing
 
 
