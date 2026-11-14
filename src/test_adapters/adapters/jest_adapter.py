@@ -23,6 +23,7 @@ from __future__ import annotations
 import json
 import re
 import shutil
+import sys
 from pathlib import Path
 from typing import Any, Sequence
 
@@ -264,9 +265,24 @@ class JestAdapter:
             command=COMMAND,
         )
 
+    install_hint = "install jest in the project (npm install --save-dev jest); test-adapters never downloads it"
+
     def requires(self) -> Sequence[str]:
         """`npx` on PATH. It resolves the project's local jest, so jest need not be global."""
         return ("npx",)
+
+    def missing_in(self, cwd: Path) -> list[str]:
+        """`jest` when no `node_modules/.bin/jest` is found in `cwd` or a parent folder.
+
+        `npx --no-install jest` walks up the folders the same way, so a hoisted jest in a workspace
+        root counts. `npx` alone on PATH does not mean jest is there (criterion 4, issue #31).
+        """
+        launchers = ("jest.cmd", "jest.ps1", "jest") if sys.platform == "win32" else ("jest",)
+        start = cwd.resolve()
+        for folder in (start, *start.parents):
+            if any((folder / "node_modules" / ".bin" / name).exists() for name in launchers):
+                return []
+        return ["jest"]
 
 
 def _npx() -> str:

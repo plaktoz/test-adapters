@@ -832,3 +832,82 @@ def test_live_project_without_local_jest_is_tool_missing(tmp_path: Path) -> None
 
     assert result.status is Status.ERROR
     assert result.error is not None and result.error.code is ErrorCode.TOOL_MISSING
+
+
+# ---------------------------------------------------------------- api seams: doctor and unsupported selectors (no jest needed)
+
+
+def _jest_project(tmp_path: Path) -> Path:
+    root = tmp_path / "proj"
+    root.mkdir()
+    (root / "package.json").write_text('{"devDependencies": {"jest": "^29.0.0"}}', encoding="utf-8")
+    (root / "tests").mkdir()
+    (root / "tests" / "a.test.js").write_text("test('a', () => {});\n", encoding="utf-8")
+    return root
+
+
+def _fake_local_jest(root: Path) -> None:
+    """A project-local jest launcher, as `npm install` leaves it (a `.cmd` shim on Windows)."""
+    bin_dir = root / "node_modules" / ".bin"
+    bin_dir.mkdir(parents=True)
+    (bin_dir / ("jest.cmd" if os.name == "nt" else "jest")).write_text("", encoding="utf-8")
+
+
+def _jest_status(root: Path):
+    return next(f for f in api.doctor(root).frameworks if f.name == "jest")
+
+
+def test_doctor_says_jest_unavailable_when_the_project_has_no_jest(tmp_path: Path) -> None:
+    # npx is on PATH, but `npx --no-install jest` cannot find jest: doctor must not say available (criterion 4).
+    root = _jest_project(tmp_path)
+
+    status = _jest_status(root)
+
+    assert status.detected is True
+    assert status.available is False
+    assert "jest" in status.hint
+
+
+def test_doctor_says_jest_available_when_the_project_has_local_jest(tmp_path: Path) -> None:
+    root = _jest_project(tmp_path)
+    _fake_local_jest(root)
+
+    assert _jest_status(root).available is True
+
+
+def test_doctor_finds_jest_hoisted_to_a_parent_node_modules(tmp_path: Path) -> None:
+    # A monorepo package resolves jest from the workspace root, as npx does.
+    root = _jest_project(tmp_path)
+    package = root / "packages" / "web"
+    package.mkdir(parents=True)
+    (package / "package.json").write_text('{"scripts": {"test": "jest"}}', encoding="utf-8")
+    _fake_local_jest(root)
+
+    assert _jest_status(package).available is True
+
+
+def test_run_without_local_jest_is_tool_missing_before_anything_runs(tmp_path: Path) -> None:
+    root = _jest_project(tmp_path)
+
+    result = api.run(TestRequest(cwd=root, framework="jest"))
+
+    assert result.status is Status.ERROR
+    assert result.error is not None
+    assert result.error.code is ErrorCode.TOOL_MISSING
+    assert "jest" in result.error.message
+    assert result.total is None
+
+
+def test_run_returns_a_result_for_a_selector_jest_cannot_express(tmp_path: Path) -> None:
+    # AdapterError from build_command becomes a TestResult (base.py, 4.3), not an exception.
+    root = _jest_project(tmp_path)
+    _fake_local_jest(root)
+
+    result = api.run(TestRequest(cwd=root, framework="jest", select=("tests/missing.test.js",)))
+
+    assert result.status is Status.ERROR
+    assert result.error is not None
+    assert result.error.code is ErrorCode.UNSUPPORTED_SELECTOR
+    assert "tests/missing.test.js" in result.error.message
+    assert result.error.hint
+    assert result.total is None
